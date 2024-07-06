@@ -115,7 +115,9 @@ parser.add_argument('--weakth', default=0.95, type=float,
 parser.add_argument('--lower_bound', default=0.55, type=float,
                         help='dynamic threshold for worst class')      
 parser.add_argument('--higher_bound', default=0.7, type=float,
-                        help='dynamic threshold for worst class')                     
+                        help='dynamic threshold for worst class')   
+parser.add_argument('--usedyth', default=True,
+                        help='whether to use dynamic threshold')                     
 args = parser.parse_args()
 
 
@@ -351,7 +353,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     dict_from_pairs = {index: value for index, value in info_pairs}   
 
     for item in worst_k:
-            if info_pairs is not None and epoch>100 :  #add epoch > 100 after checked no bug
+            if info_pairs is not None and epoch>100 and args.usedyth == True :  #add epoch > 100 after checked no bug
                 biggest_value = max(dict_from_pairs.values()) 
                 #mean_value = statistics.mean(dict_from_pairs.values())
                 mean_value = torch.mean(torch.tensor(list(dict_from_pairs.values())), dim=0)
@@ -363,7 +365,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 else:
                     dy_threshold[item] =  args.weakth
             else:      
-                dy_threshold[item] = args.weakth
+                if epoch>100:
+                    dy_threshold[item] = args.weakth
     print('dynamic_thresholds',dy_threshold) 
 
     for batch_idx in range(args.val_iteration):
