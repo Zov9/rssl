@@ -705,9 +705,9 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                                     reduction='none') * fnmask2).mean()
 
         #loss = Lx + Lu+totalabcloss
-        if args.use_la == True:
+        if args.use_la == True and epoch>100:
             loss = Lx_b + Lu_b +totalabcloss
-        elif args.comb == True:
+        elif args.comb == True and epoch>100:
             loss = Lx + Lu + Lx_b + Lu_b+totalabcloss
         else:
             loss = Lx + Lu+totalabcloss
