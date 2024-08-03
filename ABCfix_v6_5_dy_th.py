@@ -71,6 +71,7 @@ parser.add_argument('--tau', default=0.95, type=float, help='hyper-parameter for
 parser.add_argument('--ema-decay', default=0.999, type=float)
 #dataset and imbalanced type
 parser.add_argument('--dataset', type=str, default='cifar10', help='Dataset')
+parser.add_argument('--date',type = str)
 parser.add_argument('--imbalancetype', type=str, default='long', help='Long tailed or step imbalanced')
 parser.add_argument('--closstemp', type=float, default=0.5, help='Temperature for contrastive learning')
 parser.add_argument('--distance', type=float, default=0.5, help='Temperature for contrastive learning  supconloss1')
@@ -122,21 +123,30 @@ args = parser.parse_args()
 
 
 #txtpath = "/data/lipeng/ABC/txt/try100_0502.txt"
-txtpath = args.txtp+args.tempt+'.txt'
+
 
 state = {k: v for k, v in args._get_kwargs()}
 if args.dataset=='cifar10':
     import dataset.fix_cifar10 as dataset
     print(f'==> Preparing imbalanced CIFAR10')
+    dsstr = 'cf10'
     num_class = 10
 elif args.dataset=='svhn':
     import dataset.fix_svhn as dataset
     print(f'==> Preparing imbalanced SVHN')
+    dsstr = 'svhn'
     num_class = 10
 elif args.dataset=='cifar100':
     import dataset.fix_cifar100 as dataset
     print(f'==> Preparing imbalanced CIFAR100')
+    dsstr = 'cf100'
     num_class = 100
+
+args.out = './results/' + dsstr + '_' + args.date + 't' + args.tempt
+args.txtp = '/data/lipeng/ABC/txt/' + dsstr + '_' + args.date + 't'
+print('args.out is =====>',args.out)
+print('args.txtp is =====>', args.txtp)
+txtpath = args.txtp+args.tempt+'.txt'
 # Use CUDA
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 use_cuda = torch.cuda.is_available()
