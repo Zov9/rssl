@@ -232,7 +232,7 @@ def main():
         logger = Logger(os.path.join(args.out, 'log.txt'), title=title, resume=True)
     else:
         logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
-        logger.set_names(['Train Loss', 'Train Loss X', 'Train Loss U', 'abcloss','Test Loss', 'Test Acc.'])
+        logger.set_names(['Train Loss', 'Train Loss X', 'Train Loss U', 'abcloss','Train Loss X b','Train Loss U b','Train Loss cl','Test Loss', 'Test Acc.'])
 
     #==================
     #unlabeled_trainloader
@@ -252,7 +252,7 @@ def main():
             args.adjustment_l12 = compute_adjustment_by_py(args.py_con, args.tau2, args)
             
         # Training part
-        train_loss, train_loss_x, train_loss_u, abcloss,worst_k,info_pairs = train(labeled_trainloader,
+        train_loss, train_loss_x, train_loss_u, abcloss, train_loss_x_b, train_loss_u_b, train_loss_cl, worst_k, info_pairs = train(labeled_trainloader,
                                                                                                 unlabeled_trainloader,
                                                                                                 model, optimizer,
                                                                                                 ema_optimizer,
@@ -269,7 +269,7 @@ def main():
         elif args.dataset == 'cifar100':
             print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:50].mean(),testclassacc[50:].mean())
 
-        logger.append([train_loss, train_loss_x, train_loss_u,abcloss, test_loss, test_acc])
+        logger.append([train_loss, train_loss_x, train_loss_u,abcloss, train_loss_x_b, train_loss_u_b, train_loss_cl , test_loss, test_acc])
 
         # Save models
         save_checkpoint({
@@ -292,9 +292,13 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
+    losses_x_b = AverageMeter()
+    losses_u_b = AverageMeter()
     losses_x = AverageMeter()
     losses_u = AverageMeter()
     losses_abc = AverageMeter()
+    losses_cl = AverageMeter()
+
     end = time.time()
     #========================
     #num_class = 100
@@ -767,7 +771,10 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         losses.update(loss.item(), inputs_x.size(0))
         losses_x.update(Lx.item(), inputs_x.size(0))
         losses_u.update(Lu.item(), inputs_x.size(0))
+        losses_x_b.update(Lx_b.item(), inputs_x.size(0))
+        losses_u_b.update(Lu_b.item(), inputs_x.size(0))
         losses_abc.update(abcloss.item(), inputs_x.size(0))
+        losses_cl.update(clossu.item(), inputs_x.size(0))
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
@@ -781,7 +788,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         # plot progress
         bar.suffix  = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | ' \
-                      'Loss: {loss:.4f} | Loss_x: {loss_x:.4f} | Loss_u: {loss_u:.4f}| Loss_m: {loss_m:.4f}'.format(
+                      'Loss: {loss:.4f} | Loss_x: {loss_x:.4f} | Loss_u: {loss_u:.4f}| Loss_m: {loss_m:.4f} | Loss_x_b: {loss_x_b:.4f}| Loss_u_b: {loss_u_b:.4f}| Loss_cl: {loss_cl:.4f}'.format(
                     batch=batch_idx + 1,
                     size=args.val_iteration,
                     data=data_time.avg,
@@ -791,7 +798,10 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                     loss=losses.avg,
                     loss_x=losses_x.avg,
                     loss_u=losses_u.avg,
-            loss_m=losses_abc.avg,
+                    loss_m=losses_abc.avg,
+                    loss_x_b=losses_x_b.avg,
+                    loss_u_b=losses_u_b.avg,
+                    loss_cl=losses_cl.avg,
                     )
         bar.next()
     bar.finish()
@@ -906,7 +916,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 file.write("%s," % item)
             file.write('\n') 
   
-    return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg,worst_k,info_pairs)
+    return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg, losses_x_b.avg,  losses_u_b.avg, losses_cl.avg,  worst_k, info_pairs)
 
 def validate(valloader, model, criterion, mode, epoch):
     batch_time = AverageMeter()
