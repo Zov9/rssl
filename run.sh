@@ -215,3 +215,34 @@ CUDA_VISIBLE_DEVICES=1 python ABCfix_v6_5_dy_th.py --dataset cifar100 --out ./re
 CUDA_VISIBLE_DEVICES=2 python ABCfix_v6_5_dy_th.py --dataset cifar100 --out ./results/cf100_0803t4 --txtp /data/lipeng/ABC/txt/cf100_0803t --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1 --oe False  --tempt 4 --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.55 --usedyth True --higher_bound 0.7 --lower_bound 0.55
     #sample command below  
     CUDA_VISIBLE_DEVICES=3 python ABCfix_v6_5_dy_th.py --dataset cifar100 --date 080x --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.55 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+
+
+#0909
+#fix base
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+#la only
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+#dy th only
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+#dy th only + la
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+#infonce + la
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+#comb + dy th
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
