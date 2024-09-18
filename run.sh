@@ -234,16 +234,21 @@ CUDA_VISIBLE_DEVICES=2 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 -
 cd /data/lipeng/ABC
 conda activate torch1.12
 
-
-
-
-
-
-
-
-
-
-
+#0918  flexmatch  
+    # flexmatch thre  for   1. all classes  2. worst 20 classes
+    # la              for   2. worst 20 classes
+    # infonce         for   2. worst 20 classes
+#below are untested
+#flex base 
+CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
+#flex base version 2  only worst class use dynamic threshold, others remain weakth
+CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
+#la only
+CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
+CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
+#infonce + la
+CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
+CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
 
 
 
