@@ -219,18 +219,20 @@ CUDA_VISIBLE_DEVICES=2 python ABCfix_v6_5_dy_th.py --dataset cifar100 --out ./re
 
 #0909
 #fix base
-CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=0 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55 
 #la only
-CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=0 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55 --resume /data/lipeng/ABC/results/cf100_0909t2/checkpoint.pth.tar
 #dy th only
-CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=0 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55 --resume /data/lipeng/ABC/results/cf100_0909t3/checkpoint.pth.tar
 #dy th only + la
-CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=1 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55 --resume /data/lipeng/ABC/results/cf100_0909t4/checkpoint.pth.tar
 #infonce + la
-CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=2 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55 --resume /data/lipeng/ABC/results/cf100_0909t5/checkpoint.pth.tar
 #comb + dy th
-CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=2 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55 --resume /data/lipeng/ABC/results/cf100_0909t6/checkpoint.pth.tar
 
+cd /data/lipeng/ABC
+conda activate torch1.12
 
 
 

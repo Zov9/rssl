@@ -1,5 +1,9 @@
 # This code is constructed based on Pytorch Implementation of DARP(https://github.com/bbuing9/DARP)
 # First version of Supervised Contrastive loss
+
+
+#  to be implemented flexmatch 
+
 from __future__ import print_function
 
 import argparse
@@ -118,9 +122,7 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
 parser.add_argument('--usedyth', default=True,
-                        help='whether to use dynamic threshold')     
-parser.add_argument('--onlywst', default=True,
-                        help='only worst classes uses dynamic threshold, others with 0.95')                  
+                        help='whether to use dynamic threshold')                     
 args = parser.parse_args()
 
 
@@ -363,11 +365,11 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     lurct = [0]*num_class
     counter = Counter()
     counter1 = Counter()
-    
+
 
     dy_threshold =  torch.full((num_class,), 0.95).cuda()
     dict_from_pairs = {index: value for index, value in info_pairs}   
-    '''
+
     for item in worst_k:
             if info_pairs is not None and epoch>100 and args.usedyth == True :  #add epoch > 100 after checked no bug
                 biggest_value = max(dict_from_pairs.values()) 
@@ -384,7 +386,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 if epoch>100:
                     dy_threshold[item] = args.weakth
     print('dynamic_thresholds',dy_threshold) 
-    '''
+
     for batch_idx in range(args.val_iteration):
         try:
             #inputs_x, targets_x, _ = labeled_train_iter.next()
@@ -427,7 +429,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         num_unused = counter[-1]
         if num_unused != N:
-            '''
             max_counter = max([counter[c] for c in range(num_class)])
             if max_counter < num_unused:
                 # normalize with eq.11
@@ -438,50 +439,20 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             # threshold per class
             #for c in range(num_class):
             beta = [counter[c] / denominator for c in range(num_class)]
-            '''
+
 
             result_arr = [10.0, 9.733333333333333, 9.533333333333333, 9.266666666666667, 9.066666666666666, 8.866666666666667, 8.666666666666666, 8.466666666666667, 8.266666666666667, 8.066666666666666, 7.866666666666666, 7.733333333333333, 7.533333333333333, 7.333333333333333, 7.2, 7.0, 6.866666666666666, 6.733333333333333, 6.533333333333333, 6.4, 6.266666666666667, 6.133333333333334, 5.933333333333334, 5.8, 5.666666666666667, 5.533333333333333, 5.4, 5.333333333333333, 5.2, 5.066666666666666, 4.933333333333334, 4.8, 4.733333333333333, 4.6, 4.533333333333333, 4.4, 4.266666666666667, 4.2, 4.066666666666666, 4.0, 3.933333333333333, 3.8, 3.7333333333333334, 3.6666666666666665, 3.533333333333333, 3.466666666666667, 3.4, 3.3333333333333335, 3.2666666666666666, 3.1333333333333333, 3.066666666666667, 3.0, 2.933333333333333, 2.8666666666666667, 2.8, 2.7333333333333334, 2.6666666666666665, 2.6, 2.533333333333333, 2.533333333333333, 2.466666666666667, 2.4, 2.3333333333333335, 2.2666666666666666, 2.2, 2.2, 2.1333333333333333, 2.066666666666667, 2.0, 2.0, 1.9333333333333333, 1.8666666666666667, 1.8666666666666667, 1.8, 1.7333333333333334, 1.7333333333333334, 1.6666666666666667, 1.6666666666666667, 1.6, 1.5333333333333334, 1.5333333333333334, 1.4666666666666666, 1.4666666666666666, 1.4, 1.4, 1.3333333333333333, 1.3333333333333333, 1.2666666666666666, 1.2666666666666666, 1.2, 1.2, 1.2, 1.1333333333333333, 1.1333333333333333, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0, 1.0, 1.0]
-            res_arr_sum = sum(result_arr)
-            result_arr_1 = result_arr[:]
-            result_arr_1.append(res_arr_sum)
+
             
             # Creating a new counter without key -1
             counter1 = Counter({k: v / result_arr[k] for k, v in counter.items() if k != -1})
-            counter2 = Counter({k: v / result_arr_1[k] for k, v in counter.items() })
 
-            max_counter1 = max([counter2[c] for c in range(num_class)])
-            if max_counter1 < num_unused:
-                # normalize with eq.11
-                sum_counter1 = sum([counter2[c] for c in range(num_class)])                    
-                denominator1 = max(max_counter1, N - sum_counter1)
-            else:
-                denominator1 = max_counter1
-            # threshold per class
-            #for c in range(num_class):
-            beta1 = [counter2[c] / denominator1 for c in range(num_class)]
 
             smallest_5 = counter1.most_common()[:-6:-1]  # Reverse the Counter to get smallest
             smallest_10 = counter1.most_common()[:-11:-1]  
             smallest_20 = counter1.most_common()[:-21:-1]  
             # Open the file in 'a' (append) mode and write the information
-
-        
-        if args.onlywst == True:
-            for item in range(num_class):
-                if item in worst_k:
-                    dy_threshold[item] =  args.weakth * beta1[item]/(2-beta1[item])
-                else:
-                    dy_threshold[item] =  args.weakth
-        else:
-            for item in range(num_class):
-                dy_threshold[item] =  args.weakth * beta1[item]/(2-beta1[item])
-
-        print('dynamic_thresholds',dy_threshold) 
-
-
-
-
-
+            
         #=====
 
         # Generate the pseudo labels
@@ -492,7 +463,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             q1=model(inputs_u)
             outputs_u= model.classify(q1)
             targets_u2 = torch.softmax(outputs_u, dim=1).detach()
-            target_flex = F.softmax(outputs_u)
 
             
             #==========================================================
@@ -587,7 +557,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         p34 = F.softmax(logits_u.detach())
 
         p1b = F.softmax(logit.detach())
-        p2b = F.softmax(outputs_u.detach())
+        p2b = F.softmax(logitu1.detach())
         p3b = F.softmax(logitu2.detach())
         p4b = F.softmax(logitu3.detach())
         p34b = F.softmax(logitu23.detach())
@@ -651,8 +621,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         fnmask2 = torch.cat([finalmask,finalmask],dim=0).cuda()
 
         with torch.no_grad():
-            max_prob, hard_label = torch.max(target_flex, dim=1)
-            over_threshold = max_prob >= args.weakth
+            max_prob, hard_label = torch.max(logitsu1, dim=1)
+            over_threshold = max_prob >= 0.95
             if over_threshold.any():
                 idx_u = idx_u.cuda()
                 sample_index = idx_u[over_threshold].tolist()
@@ -747,18 +717,18 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         '''
 
         #0224
-        Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
+        Lx_b = F.cross_entropy(logit + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
 
-        Lu_b = (F.cross_entropy(logits_u, t2twice,
+        Lu_b = (F.cross_entropy(logitu23, t2twice,
                                     reduction='none') * fnmask2).mean()
 
         #loss = Lx + Lu+totalabcloss
         if args.use_la == True and epoch>100:
-            loss = Lx_b + Lu_b #+totalabcloss
+            loss = Lx_b + Lu_b +totalabcloss
         elif args.comb == True and epoch>100:
-            loss = Lx + Lu + Lx_b + Lu_b #+totalabcloss
+            loss = Lx + Lu + Lx_b + Lu_b+totalabcloss
         else:
-            loss = Lx + Lu #+totalabcloss
+            loss = Lx + Lu+totalabcloss
         #loss = Lx + Lu_b+totalabcloss
         #criterionu = CSLoss2(temperature=args.closstemp)
         #criterionu = SupConLoss2(temperature=args.closstemp)
@@ -991,8 +961,7 @@ def validate(valloader, model, criterion, mode, epoch):
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             targetsonehot = torch.zeros(inputs.size()[0], num_class).scatter_(1, targets.cpu().view(-1, 1).long(), 1)
             q = model(inputs)
-            #outputs2 = model.classify2(q)
-            outputs2 = model.classify(q)
+            outputs2 = model.classify2(q)
             loss = criterion(outputs2, targets)
 
             unbiasedscore = F.softmax(outputs2)
