@@ -231,6 +231,14 @@ CUDA_VISIBLE_DEVICES=2 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 -
 #comb + dy th
 CUDA_VISIBLE_DEVICES=2 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55 --resume /data/lipeng/ABC/results/cf100_0909t6/checkpoint.pth.tar
 
+# 0926 补充 comb 是 lx lu + lxb lub 不是 infonce 所以重新跑后两组实验
+#infonce + la
+CUDA_VISIBLE_DEVICES=1 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 7 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth False --higher_bound 0.7 --lower_bound 0.55 
+#comb + dy th
+CUDA_VISIBLE_DEVICES=3 python fix_v6_5_dy_th.py --dataset cifar100 --date 0909 --tempt 8 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --usedyth True --higher_bound 0.7 --lower_bound 0.55 
+
+
+
 cd /data/lipeng/ABC
 conda activate torch1.12
 
@@ -240,15 +248,26 @@ conda activate torch1.12
     # infonce         for   2. worst 20 classes
 #below are untested
 #flex base 
-CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
+CUDA_VISIBLE_DEVICES=1 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
 #flex base version 2  only worst class use dynamic threshold, others remain weakth
-CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
+CUDA_VISIBLE_DEVICES=1 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst True --resume /data/lipeng/ABC/results/cf100_0918t2/checkpoint.pth.tar
 #la only
 CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
 CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
 #infonce + la
-CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
-CUDA_VISIBLE_DEVICES=0 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
+CUDA_VISIBLE_DEVICES=2 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
+CUDA_VISIBLE_DEVICES=3 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb True  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
+
+#0926 后两组 有问题
+CUDA_VISIBLE_DEVICES=1 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 7 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst False
+CUDA_VISIBLE_DEVICES=3 python flex_v6_5_dy_th.py --dataset cifar100 --date 0918 --tempt 8 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.95 --onlywst True
+
+#1005
+CUDA_VISIBLE_DEVICES=0 python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False   --dismod furst --diskey 3 --weakth 0.95 
+CUDA_VISIBLE_DEVICES=1 python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 1.0
+CUDA_VISIBLE_DEVICES=2 python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 2.0
+CUDA_VISIBLE_DEVICES=3 python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667
+
 
 
 

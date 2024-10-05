@@ -83,12 +83,8 @@ parser.add_argument('--lam', default=1, type=float,
                         help='coeffcient of closs')
 parser.add_argument('--nesterov', action='store_true', default=True,
                         help='use nesterov momentum')
-parser.add_argument('--oe', default=False,
-                        help='OECC Loss use or not')
 parser.add_argument('--conu', default=False,
                         help='Contrastive Loss on datau use or not')
-parser.add_argument('--oecf',type = float, default=0.65,
-                        help='  ar coffecient ar of OECC loss')
 parser.add_argument('--cl12',type = float, default=1.0,
                         help='coffecient of adjustment_l12')
 parser.add_argument('--lam1', default=0.05, type=float,
@@ -118,9 +114,7 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
 parser.add_argument('--usedyth', default=True,
-                        help='whether to use dynamic threshold')     
-parser.add_argument('--onlywst', default=True,
-                        help='only worst classes uses dynamic threshold, others with 0.95')                  
+                        help='whether to use dynamic threshold')                     
 args = parser.parse_args()
 
 
@@ -228,6 +222,11 @@ def main():
     ema_optimizer = WeightEMA(model, ema_model, alpha=args.ema_decay)
     start_epoch = 0
 
+    worst_k = []
+    info_pairs = []
+    N = len(unlabeled_trainloader.dataset.indices)
+    learning_status = [-1] * N
+
     # Resume
     title = 'ABCfix-' + args.dataset
     if args.resume:
@@ -237,32 +236,34 @@ def main():
         args.out = os.path.dirname(args.resume)
         checkpoint = torch.load(args.resume)
         start_epoch = checkpoint['epoch']
+        worst_k = checkpoint['worst_k']
+        info_pairs = checkpoint['info_pairs']
+        learning_status = checkpoint['l_status']
         model.load_state_dict(checkpoint['state_dict'])
         ema_model.load_state_dict(checkpoint['ema_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
         logger = Logger(os.path.join(args.out, 'log.txt'), title=title, resume=True)
+        
     else:
         logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
         logger.set_names(['Train Loss', 'Train Loss X', 'Train Loss U', 'abcloss','Train Loss X b','Train Loss U b','Train Loss cl','Test Loss', 'Test Acc.'])
 
     #==================
     #unlabeled_trainloader
-    N = len(unlabeled_trainloader.dataset.indices)
     
-    learning_status = [-1] * N
     #==================
-    worst_k = []
+    
     twk = []
-    info_pairs = []
+    
 
     for epoch in range(start_epoch, args.epochs):
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, state['lr']))
-        
+        '''
         if epoch>100:
-            args.py_con = compute_py1(labeled_trainloader, worst_k)
+            args.py_con = compute_py1(labeled_trainloader, worst_k) #flexmatch这里应该改一下 改成compute_py
             args.adjustment_l12 = compute_adjustment_by_py(args.py_con, args.tau2, args)
-            
+        '''    
         # Training part
         train_loss, train_loss_x, train_loss_u, abcloss, train_loss_x_b, train_loss_u_b, train_loss_cl, worst_k, info_pairs = train(labeled_trainloader,
                                                                                                 unlabeled_trainloader,
@@ -291,6 +292,10 @@ def main():
 
                 'optimizer' : optimizer.state_dict(),
                 'scheduler': scheduler.state_dict(),
+                'worst_k':worst_k,
+                'info_pairs':info_pairs,
+                'l_status':learning_status
+
             }, epoch + 1)
 
     logger.close()
@@ -363,11 +368,11 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     lurct = [0]*num_class
     counter = Counter()
     counter1 = Counter()
-    
+
 
     dy_threshold =  torch.full((num_class,), 0.95).cuda()
     dict_from_pairs = {index: value for index, value in info_pairs}   
-    '''
+
     for item in worst_k:
             if info_pairs is not None and epoch>100 and args.usedyth == True :  #add epoch > 100 after checked no bug
                 biggest_value = max(dict_from_pairs.values()) 
@@ -384,7 +389,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 if epoch>100:
                     dy_threshold[item] = args.weakth
     print('dynamic_thresholds',dy_threshold) 
-    '''
+
     for batch_idx in range(args.val_iteration):
         try:
             #inputs_x, targets_x, _ = labeled_train_iter.next()
@@ -427,7 +432,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         num_unused = counter[-1]
         if num_unused != N:
-            '''
             max_counter = max([counter[c] for c in range(num_class)])
             if max_counter < num_unused:
                 # normalize with eq.11
@@ -438,53 +442,20 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             # threshold per class
             #for c in range(num_class):
             beta = [counter[c] / denominator for c in range(num_class)]
-            '''
 
-            result_arr = [10.0, 9.733333333333333, 9.533333333333333, 9.266666666666667, 9.066666666666666, 8.866666666666667, 8.666666666666666, 8.466666666666667, 8.266666666666667, 8.066666666666666, 7.866666666666666, 7.733333333333333, 7.533333333333333, 7.333333333333333, 7.2, 7.0, 6.866666666666666, 6.733333333333333, 6.533333333333333, 6.4, 6.266666666666667, 6.133333333333334, 5.933333333333334, 5.8, 5.666666666666667, 5.533333333333333, 5.4, 5.333333333333333, 5.2, 5.066666666666666, 4.933333333333334, 4.8, 4.733333333333333, 4.6, 4.533333333333333, 4.4, 4.266666666666667, 4.2, 4.066666666666666, 4.0, 3.933333333333333, 3.8, 3.7333333333333334, 3.6666666666666665, 3.533333333333333, 3.466666666666667, 3.4, 3.3333333333333335, 3.2666666666666666, 3.1333333333333333, 3.066666666666667, 3.0, 2.933333333333333, 2.8666666666666667, 2.8, 2.7333333333333334, 2.6666666666666665, 2.6, 2.533333333333333, 2.533333333333333, 2.466666666666667, 2.4, 2.3333333333333335, 2.2666666666666666, 2.2, 2.2, 2.1333333333333333, 2.066666666666667, 2.0, 2.0, 1.9333333333333333, 1.8666666666666667, 1.8666666666666667, 1.8, 1.7333333333333334, 1.7333333333333334, 1.6666666666666667, 1.6666666666666667, 1.6, 1.5333333333333334, 1.5333333333333334, 1.4666666666666666, 1.4666666666666666, 1.4, 1.4, 1.3333333333333333, 1.3333333333333333, 1.2666666666666666, 1.2666666666666666, 1.2, 1.2, 1.2, 1.1333333333333333, 1.1333333333333333, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0, 1.0, 1.0]
-            res_arr_sum = sum(result_arr)
-            result_arr_1 = result_arr[:]
-            result_arr_1.append(res_arr_sum)
+            N_SAMPLES_PER_CLASS = make_imb_data(args.num_max, num_class, args.imb_ratio,args.imbalancetype)
+            result_arr = [i/sum(N_SAMPLES_PER_CLASS) for i in N_SAMPLES_PER_CLASS]
+
             
             # Creating a new counter without key -1
             counter1 = Counter({k: v / result_arr[k] for k, v in counter.items() if k != -1})
-            counter2 = Counter({k: v / result_arr_1[k] for k, v in counter.items() })
 
-            max_counter1 = max([counter2[c] for c in range(num_class)])
-            if max_counter1 < num_unused:
-                # normalize with eq.11
-                sum_counter1 = sum([counter2[c] for c in range(num_class)])                    
-                denominator1 = max(max_counter1, N - sum_counter1)
-            else:
-                denominator1 = max_counter1
-            # threshold per class
-            #for c in range(num_class):
-            beta1 = [counter2[c] / denominator1 for c in range(num_class)]
 
             smallest_5 = counter1.most_common()[:-6:-1]  # Reverse the Counter to get smallest
             smallest_10 = counter1.most_common()[:-11:-1]  
             smallest_20 = counter1.most_common()[:-21:-1]  
             # Open the file in 'a' (append) mode and write the information
-
-        if num_unused != N:
-            if args.onlywst == True:
-                for item in range(num_class):
-                    if item in worst_k:
-                        dy_threshold[item] =  args.weakth * beta1[item]/(2-beta1[item])
-                    else:
-                        dy_threshold[item] =  args.weakth
-            else:
-                for item in range(num_class):
-                    dy_threshold[item] =  args.weakth * beta1[item]/(2-beta1[item])
-        else:
-             for item in range(num_class):                  
-                    dy_threshold[item] =  args.weakth 
-
-        print('dynamic_thresholds',dy_threshold) 
-
-
-
-
-
+            
         #=====
 
         # Generate the pseudo labels
@@ -495,7 +466,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             q1=model(inputs_u)
             outputs_u= model.classify(q1)
             targets_u2 = torch.softmax(outputs_u, dim=1).detach()
-            target_flex = F.softmax(outputs_u)
 
             
             #==========================================================
@@ -520,38 +490,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         p_hat_mx_tmp  = p_hat
         
         p_hat = torch.zeros(batch_size, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
-        
-        #print("!!!max_p!!!",len(max_p))
-        #print(p_hat[0])
-        #p_hat_mx_tmp = torch.argmax(p_hat,dim = -1)
-        #print(len(p_hat_mx_tmp))
-        #print(p_hat_mx_tmp)
-
-        #worst_k
-
-        #print('worst_k__________----------------_________',worst_k)
-        
-        #dy_threshold =  torch.full((num_class,), 0.95).cuda()
-        
-        #dict_from_pairs = {index: value for index, value in info_pairs}       
-        '''
-        for item in worst_k:
-            if info_pairs is not None and epoch>100 :  #add epoch > 100 after checked no bug
-                biggest_value = max(dict_from_pairs.values()) 
-                #mean_value = statistics.mean(dict_from_pairs.values())
-                mean_value = torch.mean(torch.tensor(list(dict_from_pairs.values())), dim=0)
-                if not math.isnan(dict_from_pairs[item]):
-                    dy_threshold[item] = args.lower_bound + (mean_value/dict_from_pairs[item])*(args.higher_bound-args.lower_bound)
-                    #make sure it is in area (0.5,0.95)
-                    dy_threshold[item] = min(dy_threshold[item],0.95)
-                    dy_threshold[item] = max(dy_threshold[item],0.5)
-                else:
-                    dy_threshold[item] =  args.weakth
-            else:      
-                dy_threshold[item] = args.weakth
-        print('dynamic_thresholds',dy_threshold)
-        '''
-        
+           
         selected_thresholds = dy_threshold[p_hat_mx_tmp]
         #print('selected_thresholds',selected_thresholds)
 
@@ -560,6 +499,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print('select mask',select_mask)
         #print('select mask1',select_mask1)
         smask = max_p.ge(0.9)
+        #smask 这里是用在closs里面的 到底是用这个还是 select_mask 后面可以再看
+        #la没效果 怀疑是mask的问题 edited on 24-09-26
         org_mask = select_mask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
 
@@ -574,10 +515,10 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         maskforbalance = torch.bernoulli(torch.sum(targets_x2 * torch.tensor(ir2).cuda(0), dim=1).detach())
 
-        logit = model.classify2(q)#labeled sample
-        logitu1 = model.classify2(q1)#weak aug unlabel
-        logitu2 = model.classify2(q2)
-        logitu3 = model.classify2(q3)
+        logit = model.classify(q)#labeled sample
+        logitu1 = model.classify(q1)#weak aug unlabel
+        logitu2 = model.classify(q2)
+        logitu3 = model.classify(q3)
         logitu23 = torch.cat([logitu2,logitu3],dim=0)
 
         logits = F.softmax(logit)#labeled sample
@@ -654,8 +595,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         fnmask2 = torch.cat([finalmask,finalmask],dim=0).cuda()
 
         with torch.no_grad():
-            max_prob, hard_label = torch.max(target_flex, dim=1)
-            over_threshold = max_prob >= args.weakth
+            max_prob, hard_label = torch.max(logitsu1, dim=1)
+            over_threshold = max_prob >= 0.95
             if over_threshold.any():
                 idx_u = idx_u.cuda()
                 sample_index = idx_u[over_threshold].tolist()
@@ -753,15 +694,18 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
 
         Lu_b = (F.cross_entropy(logits_u, t2twice,
-                                    reduction='none') * fnmask2).mean()
+                                    reduction='none') * select_mask).mean()
 
         #loss = Lx + Lu+totalabcloss
-        if args.use_la == True and epoch>100:
+        #if args.use_la == True and epoch>100:
+        if args.use_la == True :
             loss = Lx_b + Lu_b #+totalabcloss
-        elif args.comb == True and epoch>100:
-            loss = Lx + Lu + Lx_b + Lu_b #+totalabcloss
+            print('use-la logit adjustment')
+        #elif args.comb == True and epoch>100:
+        #    loss = Lx + Lu + Lx_b + Lu_b #+totalabcloss
         else:
             loss = Lx + Lu #+totalabcloss
+            print('no logit adjustment')
         #loss = Lx + Lu_b+totalabcloss
         #criterionu = CSLoss2(temperature=args.closstemp)
         #criterionu = SupConLoss2(temperature=args.closstemp)
@@ -794,10 +738,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
              #loss = Lx_b+Lu_b+totalabcloss
             #if not torch.isnan(clossu).any():
                 loss=loss+clossu #+clossx 
-        '''        
-        if epoch>400 and args.oe == True:
-                loss+=args.lam1*OECCloss(max_prob,args.oecf)   
-        '''         
+            
         print('Total loss',loss)
 
 
@@ -827,6 +768,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         loss.backward()
         optimizer.step()
         if args.use_sgd:
+            print('using sgd... updating sgd params')
             scheduler.step()
         ema_optimizer.step()
 
