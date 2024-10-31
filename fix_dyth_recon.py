@@ -54,7 +54,7 @@ parser.add_argument('--out', default='result',
 # Miscs
 parser.add_argument('--manualSeed', type=int, default=0, help='manual seed')
 #Device options
-parser.add_argument('--gpu', default='3', type=str,
+parser.add_argument('--gpu', default='0', type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 # Method options
 parser.add_argument('--num_max', type=int, default=1500,
@@ -139,7 +139,7 @@ elif args.dataset=='cifar100':
     num_class = 100
 
 args.out = './results/' + dsstr + '_' + args.date + 't' + args.tempt
-args.txtp = '/data/lipeng/ABC/txt/' + dsstr + '_' + args.date + 't'
+args.txtp = './txt/' + dsstr + '_' + args.date + 't'
 print('args.out is =====>',args.out)
 print('args.txtp is =====>', args.txtp)
 txtpath = args.txtp+args.tempt+'.txt'
@@ -375,6 +375,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
     for item in worst_k:
             if info_pairs is not None and epoch>100 and args.usedyth == True :  #add epoch > 100 after checked no bug
+                print(' calculating dynamic threshold...... ')
                 biggest_value = max(dict_from_pairs.values()) 
                 #mean_value = statistics.mean(dict_from_pairs.values())
                 mean_value = torch.mean(torch.tensor(list(dict_from_pairs.values())), dim=0)
@@ -386,6 +387,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 else:
                     dy_threshold[item] =  args.weakth
             else:      
+                print(' no matches for dynamic threshold ')
                 if epoch>100:
                     dy_threshold[item] = args.weakth
     print('dynamic_thresholds',dy_threshold) 
@@ -698,14 +700,14 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         #loss = Lx + Lu+totalabcloss
         #if args.use_la == True and epoch>100:
-        if args.use_la == True :
+        if args.use_la :
             loss = Lx_b + Lu_b #+totalabcloss
-            print('use-la logit adjustment')
+            print('YES use-la logit adjustment')
         #elif args.comb == True and epoch>100:
         #    loss = Lx + Lu + Lx_b + Lu_b #+totalabcloss
         else:
             loss = Lx + Lu #+totalabcloss
-            print('no logit adjustment')
+            print('NO logit adjustment')
         #loss = Lx + Lu_b+totalabcloss
         #criterionu = CSLoss2(temperature=args.closstemp)
         #criterionu = SupConLoss2(temperature=args.closstemp)
@@ -737,6 +739,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         if epoch>100 and args.conu == True:
              #loss = Lx_b+Lu_b+totalabcloss
             #if not torch.isnan(clossu).any():
+                print(' add conu ')
+                
                 loss=loss+clossu #+clossx 
             
         print('Total loss',loss)
