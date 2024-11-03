@@ -114,7 +114,9 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
 parser.add_argument('--usedyth', default=True,
-                        help='whether to use dynamic threshold')                     
+                        help='whether to use dynamic threshold')    
+parser.add_argument('--lbdcl', default=0.05, type=float,
+                        help='lambda of contrastive loss')                   
 args = parser.parse_args()
 
 
@@ -510,7 +512,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         selected_thresholds = dy_threshold[p_hat_mx_tmp]
         #print('selected_thresholds',selected_thresholds)
 
-        select_mask = max_p.ge(selected_thresholds)
+        select_mask_ = max_p.ge(selected_thresholds)
+        osmask = select_mask_
         #select_mask1 = max_p.ge(0.95)
         #print('select mask',select_mask)
         #print('select mask1',select_mask1)
@@ -518,7 +521,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #smask 这里是用在closs里面的 到底是用这个还是 select_mask 后面可以再看
         #la没效果 怀疑是mask的问题 edited on 24-09-26
         org_mask = select_mask
-        select_mask = torch.cat([select_mask, select_mask], 0).float()
+        select_mask = torch.cat([select_mask_, select_mask_], 0).float()
 
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
         all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
@@ -740,22 +743,33 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #clossu = criterionu(smask,q1,hard_label,worst_k)
 
         #0208 clossu and clossx below
-        clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
+        worst_k_flex = [i for i in range(num_class)]
+        clossu = criterionu(osmask,worst_k_flex,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
         #clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_su)
         clossx = criterionx(worst_k,logits_x,all_targets[:batch_size])
 
         #clossu = criterionu(smask,worst_k,q,q1,all_targets[:batch_size],targets_su)
         #clossu = criterionu(smask,q1,targets_su,worst_k)
         #clossx = criterionx(worst_k,logit,all_targets[:batch_size])
-
-     
+        '''
+        print(logits_x.shape)
+        print("logits_x的维度数:", len(logits_x.shape))
+        for i, dim in enumerate(logits_x.shape):
+            print(f"logits_x 第 {i + 1} 维的长度是：", dim)
+        print(outputs_u.shape)
+        print("outputs_u的维度数:", len(outputs_u.shape))
+        for i, dim in enumerate(outputs_u.shape):
+            print(f"outputs_u 第 {i + 1} 维的长度是：", dim)
+        print('all_targets[:batch_size] shape',all_targets[:batch_size].shape)
+        print('targets_u.shape',targets_u.shape)
+        '''
         
-        if epoch>100 and args.conu == True:
+        if epoch>1 and args.conu:
              #loss = Lx_b+Lu_b+totalabcloss
             #if not torch.isnan(clossu).any():
-                print(' add conu ')
+                print('add conu')
                 
-                loss=loss+clossu #+clossx 
+                loss=loss+args.lbdcl * clossu #+clossx 
             
         print('Total loss',loss)
 

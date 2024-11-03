@@ -854,7 +854,7 @@ class SupConLoss3(nn.Module):  #supconloss3对所有样本都有closs但对w类�
         self.scale_by_temperature = scale_by_temperature
 
     def forward(self, tmask,worstk,features1, features2,labels1 = None ,labels2 = None, mask=None):# x, u, labelx, labelu
-       
+        #tmask 是 thre > 0.95 或者动态阈值 的 mask
         device = (torch.device('cuda'))
         features1 = F.normalize(features1, p=2, dim=1)
         features2 = F.normalize(features2, p=2, dim=1)
@@ -871,11 +871,25 @@ class SupConLoss3(nn.Module):  #supconloss3对所有样本都有closs但对w类�
         labels1 = labels1.contiguous().view(-1, 1)
         #labels2 = torch.argmax(labels2, dim=1)
         labels2 = labels2.contiguous().view(-1, 1)
+
+        #print('labels1 shape in supconloss3',labels1.shape)
+        #print('labels2 shape in supconloss3',labels1.shape)
         #print('label1 shape0:',labels1.shape[0],'label2 shape0:',labels2.shape[0],'feature1 shape0:',features1.shape[0],'feature2 shape0:',features2.shape[0])
         if labels1.shape[0] != batch_size:
             raise ValueError('Num of labels does not match num of features')
+        #new_labels = torch.where(tmask, labels2, torch.tensor(-1))
         mask = torch.eq(labels1, labels2.T).float().to(device)
         mask2 = torch.eq(labels2, labels2.T).float().to(device)
+        '''
+        for i in range(len(new_labels)):
+            for j in range(len(new_labels)):
+                if new_labels[i] == -1 or new_labels[j] == -1:
+                    mask[i, j] = False
+        for i in range(len(new_labels)):
+            for j in range(len(new_labels)):
+                if new_labels[i] == -1 or new_labels[j] == -1:
+                    mask[i, j] = False    
+        '''
         #mask3  based on worstk
         mask3 = torch.zeros(batch_size)
         #mask4  1 for mask and 0 for mask3, designed for samples not in worstk classes
@@ -964,7 +978,7 @@ class SupConLoss3(nn.Module):  #supconloss3对所有样本都有closs但对w类�
         #    loss *= self.temperature
         loss = loss.mean()
         loss1 = loss1.mean()
-        return loss+loss1
+        return loss
 
 class SupConLoss3_(nn.Module):  #supconloss3 是+ distance 这是 -distance
 

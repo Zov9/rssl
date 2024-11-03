@@ -272,7 +272,7 @@ CUDA_VISIBLE_DEVICES=3 python fix_dyth_recon.py --dataset cifar100 --date 1005 -
 python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 5_ --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True
     #la + infonce
 python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 6 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True
-
+python fix_dyth_recon.py --dataset cifar100 --date 1005 --tempt 6_2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True --lbdcl 0.05
 
 #1031
     #only la

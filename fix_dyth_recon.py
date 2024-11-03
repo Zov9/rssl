@@ -114,7 +114,9 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
 parser.add_argument('--usedyth', default=True,
-                        help='whether to use dynamic threshold')                     
+                        help='whether to use dynamic threshold')         
+parser.add_argument('--lbdcl', default=0.05, type=float,
+                        help='lambda of contrastive loss')              
 args = parser.parse_args()
 
 
@@ -736,12 +738,13 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
      
         
-        if epoch>100 and args.conu == True:
+        if epoch>100 and args.conu:
              #loss = Lx_b+Lu_b+totalabcloss
             #if not torch.isnan(clossu).any():
                 print(' add conu ')
                 
-                loss=loss+clossu #+clossx 
+                loss=loss+args.lbdcl * clossu #+clossx 
+                
             
         print('Total loss',loss)
 
