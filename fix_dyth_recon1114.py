@@ -537,76 +537,76 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         logits = F.softmax(logit)#labeled sample
         logitsu1 = F.softmax(logitu1)#weak aug unlabel
 
-        p1 = F.softmax(logits_x.detach())
+        #p1 = F.softmax(logits_x.detach())
         p2 = F.softmax(outputs_u.detach() - args.cl12 * args.adjustment_l12)
         #p3 = F.softmax(logits_u1.detach())
         #p4 = F.softmax(logits_u2.detach())
         #p34 = F.softmax(logits_u.detach())
 
-        p1b = F.softmax(logit.detach())
-        p2b = F.softmax(outputs_u.detach())
+        #p1b = F.softmax(logit.detach())
+        #p2b = F.softmax(outputs_u.detach())
         #p3b = F.softmax(logitu2.detach())
         #p4b = F.softmax(logitu3.detach())
         #p34b = F.softmax(logitu23.detach())
 
-        m1,t1 = torch.max(p1,dim =1)
+        #m1,t1 = torch.max(p1,dim =1)
         m2,t2 = torch.max(p2,dim =1)
         #m3,t3 = torch.max(p3,dim =1)
         #m4,t4 = torch.max(p4,dim =1)
         #m34,t34 = torch.max(p34,dim =1)
         t2twice = torch.cat([t2,t2],dim=0).cuda()
 
-        m1b,t1b = torch.max(p1b,dim =1)
-        m2b,t2b = torch.max(p2b,dim =1)
+        #m1b,t1b = torch.max(p1b,dim =1)
+        #m2b,t2b = torch.max(p2b,dim =1)
         #m3b,t3b = torch.max(p3b,dim =1)
         #m4b,t4b = torch.max(p4b,dim =1)
         #m34b,t34b = torch.max(p34b,dim =1)
 
-        msk1w = torch.tensor([index in worst_k for index in t1], dtype=torch.bool)
-        msk2w = torch.tensor([index in worst_k for index in t2], dtype=torch.bool)
+        #msk1w = torch.tensor([index in worst_k for index in t1], dtype=torch.bool)
+        #msk2w = torch.tensor([index in worst_k for index in t2], dtype=torch.bool)
         #msk3w = torch.tensor([index in worst_k for index in t3], dtype=torch.bool)
         #msk4w = torch.tensor([index in worst_k for index in t4], dtype=torch.bool)
         #msk34w = torch.tensor([index in worst_k for index in t34], dtype=torch.bool)
 
-        msk1bw = torch.tensor([index in worst_k for index in t1b], dtype=torch.bool)
-        msk2bw = torch.tensor([index in worst_k for index in t2b], dtype=torch.bool)
+        #msk1bw = torch.tensor([index in worst_k for index in t1b], dtype=torch.bool)
+        #msk2bw = torch.tensor([index in worst_k for index in t2b], dtype=torch.bool)
         #msk3bw = torch.tensor([index in worst_k for index in t3b], dtype=torch.bool)
         #msk4bw = torch.tensor([index in worst_k for index in t4b], dtype=torch.bool)
         #msk34bw = torch.tensor([index in worst_k for index in t34b], dtype=torch.bool)
 
-        msk1s = m1.ge(args.wkthreshold)
-        msk2s = m2.ge(args.wkthreshold)
+        #msk1s = m1.ge(args.wkthreshold)
+        #msk2s = m2.ge(args.wkthreshold)
         #msk3s = m3.ge(args.wkthreshold)
         #msk4s = m4.ge(args.wkthreshold)
         #msk34s = m34.ge(args.wkthreshold)
         
 
-        msk1sb = m1b.ge(args.wkthreshold)
-        msk2sb = m2b.ge(args.wkthreshold)
+        #msk1sb = m1b.ge(args.wkthreshold)
+        #msk2sb = m2b.ge(args.wkthreshold)
         #msk3sb = m3b.ge(args.wkthreshold)
         #msk4sb = m4b.ge(args.wkthreshold)
         #msk34sb = m34b.ge(args.wkthreshold)
 
-        msk1 = m1.ge(args.threshold)
-        msk2 = m2.ge(args.threshold)
+        #msk1 = m1.ge(args.threshold)
+        #msk2 = m2.ge(args.threshold)
         #msk3 = m3.ge(args.threshold)
         #msk4 = m4.ge(args.threshold)
         #msk34 = m34.ge(args.threshold)
 
-        msk1b = m1b.ge(args.threshold)
-        msk2b = m2b.ge(args.threshold)
+        #msk1b = m1b.ge(args.threshold)
+        #msk2b = m2b.ge(args.threshold)
         #msk3b = m3b.ge(args.threshold)
         #msk4b = m4b.ge(args.threshold)
         #msk34b = m34b.ge(args.threshold)
 
-
+        '''
         msk2zz = msk2w.cuda() & msk2s.cuda()
         msk2zzb = msk2bw.cuda() & msk2sb.cuda()
         msk2z = msk2.cuda() 
         msk2zb = msk2b.cuda() 
         finalmask = msk2zz+msk2zzb+msk2z+msk2zb
         fnmask2 = torch.cat([finalmask,finalmask],dim=0).cuda()
-
+        
         with torch.no_grad():
             max_prob, hard_label = torch.max(logitsu1, dim=1)
             over_threshold = max_prob >= 0.95
@@ -616,13 +616,13 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 pseudo_label = hard_label[over_threshold].tolist()
                 for i, l in zip(sample_index, pseudo_label):
                     learning_status[i] = l
+        '''
 
 
 
 
-
-        u_cm_pred_w.append(logitsu1)#!!!
-        l_cm_pred.append(logits)#!!!
+        #u_cm_pred_w.append(logitsu1)#!!!
+        #l_cm_pred.append(logits)#!!!
 
 
         max_p2, label_u = torch.max(logitsu1, dim=1)
@@ -633,7 +633,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         maskforbalanceu = torch.bernoulli(torch.sum(label_u.cuda(0) * torch.tensor(ir22).cuda(0), dim=1).detach())
         logitsu2 = F.softmax(logitu2)
 
-        u_cm_pred_s.append(logitsu2)#!!!
+        #u_cm_pred_s.append(logitsu2)#!!!
 
         logitsu3 = F.softmax(logitu3)
 
