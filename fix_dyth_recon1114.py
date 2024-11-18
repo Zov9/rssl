@@ -116,7 +116,11 @@ parser.add_argument('--higher_bound', default=0.7, type=float,
 parser.add_argument('--usedyth', default=True,
                         help='whether to use dynamic threshold')         
 parser.add_argument('--lbdcl', default=0.05, type=float,
-                        help='lambda of contrastive loss')              
+                        help='lambda of contrastive loss')     
+parser.add_argument('--usecsl', default=False,
+                        help='whether to use cost-sensitive learning')  
+parser.add_argument('--lbdcsl', default=1.5, type=float,
+                        help='lambda of cost-sensitive loss')         
 args = parser.parse_args()
 
 
@@ -506,6 +510,35 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print('selected_thresholds',selected_thresholds)
 
         select_mask = max_p.ge(selected_thresholds)
+        int_mask = torch.ones_like(select_mask, dtype=torch.float).cuda()
+        int_mask1 = torch.ones(batch_size).cuda()
+
+        if args.usecsl:
+            print('Use cost-sensitive learning')
+            for i, p in enumerate(p_hat_mx_tmp):
+                if p.item() in worst_k:
+                    int_mask[i] = args.lbdcsl
+            #print('targets_x',targets_x)
+            for i, p in enumerate(targets_x):
+                if p.item() in worst_k:
+                    int_mask1[i] = args.lbdcsl
+        #print('int_mask',int_mask)
+        #print('int_mask1',int_mask1)
+        
+
+
+        '''
+        print('\n')
+        print('dy_th')
+        print(dy_threshold)
+        print('selected_ths')
+        print(selected_thresholds)
+        print('p_hat')
+        print(p_hat_mx_tmp)
+        print('select_mask')
+        print(select_mask)
+        print('\n')
+        '''
         #select_mask1 = max_p.ge(0.95)
         #print('select mask',select_mask)
         #print('select mask1',select_mask1)
@@ -514,6 +547,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #la没效果 怀疑是mask的问题 edited on 24-09-26
         org_mask = select_mask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
+        int_mask = torch.cat([int_mask, int_mask], 0).float()
 
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
         all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
@@ -536,6 +570,10 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #PART 3 END
         logits = F.softmax(logit)#labeled sample
         logitsu1 = F.softmax(logitu1)#weak aug unlabel
+
+
+        
+        
 
         #p1 = F.softmax(logits_x.detach())
         p2 = F.softmax(outputs_u.detach() - args.cl12 * args.adjustment_l12)
@@ -698,7 +736,15 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             select_mask2 * maskforbalanceu * torch.sum(torch.log(logitsu3) * logitsu1.cuda(0).detach(), dim=1))
 
         totalabcloss=abcloss+abcloss1+abcloss2
-        Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
+        #Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
+        Lx = (F.cross_entropy(logits_x, all_targets[:batch_size],
+                                    reduction='none') * int_mask1).mean()
+        #print('int mask__',int_mask)
+        #print('select mask__',select_mask)
+        Lu = (F.cross_entropy(logits_u, all_targets[batch_size:],
+                                    reduction='none') * int_mask * select_mask).mean()
+
+
         #print('!!!select mask!!!')  #64*2 len = 128
         #print(select_mask)
         #Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
@@ -710,10 +756,12 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         '''
 
         #0224
-        Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
+        #Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
+        Lx_b = (F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size],
+                                    reduction='none') * int_mask1).mean()
 
         Lu_b = (F.cross_entropy(logits_u, t2twice,
-                                    reduction='none') * select_mask).mean()
+                                    reduction='none')  * int_mask * select_mask).mean()
 
         #loss = Lx + Lu+totalabcloss
         #if args.use_la == True and epoch>100:

@@ -281,3 +281,10 @@ python flex_dyth_recon.py --dataset cifar100 --date 1031 --tempt 1 --label_ratio
 python flex_dyth_recon.py --dataset cifar100 --date 1031 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True
 #1113 fix efficiency
 CUDA_VISIBLE_DEVICES=2 python fix_dyth_recon.py --dataset cifar100 --date 1112 --tempt try1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu True --use-la True   --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True
+
+#1118
+CUDA_VISIBLE_DEVICES=2 python fix_dyth_recon.py --dataset cifar100 --date 1118 --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth False --use-la False --usecsl True --lbdcsl 1.5
+
+CUDA_VISIBLE_DEVICES=2 python fix_dyth_recon.py --dataset cifar100 --date 1118 --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True --use-la False --usecsl True --lbdcsl 1.5
+
+CUDA_VISIBLE_DEVICES=2 python fix_dyth_recon.py --dataset cifar100 --date 1118 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth True --use-la True --usecsl True --lbdcsl 1.5
