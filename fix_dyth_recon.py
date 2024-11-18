@@ -513,7 +513,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         int_mask = torch.ones_like(select_mask, dtype=torch.float).cuda()
         int_mask1 = torch.ones(batch_size).cuda()
 
-        if args.usecsl:
+        if args.usecsl and epoch>100:
             print('Use cost-sensitive learning')
             for i, p in enumerate(p_hat_mx_tmp):
                 if p.item() in worst_k:
