@@ -990,7 +990,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     current_time = datetime.now()
     print("567 Current Time:", current_time)
 
-    worst_k,info_pairs = worstk(args.wk,distus,fdus)
+    print('wk',args.wk)
+    worst_k,info_pairs = worstk(args.wk,num_class,distus,fdus)
 
         ############################################
         ############################################

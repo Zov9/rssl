@@ -530,7 +530,7 @@ def row_sum(a):
         except:
             result.append(-1)
     return result # Return the result list
-
+'''
 def worstk(k,usdist,Lu_part):  #usdist -- distance between classes for unlabled selected data   //   Lu_part  -- furthest distance between sample and class center for u s data
     overlap_percent_upart = usdist
     for j in range(100):
@@ -554,8 +554,31 @@ def worstk(k,usdist,Lu_part):  #usdist -- distance between classes for unlabled 
     #print('info_pairs',info_pairs)
     print('returned from worstk func,',ret)
     return tuple(ret),info_pairs
+'''
+def worstk(wk,num_class,usdist,Lu_part):  #usdist -- distance between classes for unlabled selected data   //   Lu_part  -- furthest distance between sample and class center for u s data
+    overlap_percent_upart = usdist
+    for j in range(num_class):
+        for k in range(num_class):
+            if j<k:
+                
+                try:
+                    dist2 = overlap_area(1-Lu_part[j],1-Lu_part[k],usdist[j][k])
+                    overlap_percent_upart[j][k] = dist2/(math.pi*(1-Lu_part[j])*(1-Lu_part[j]))
+                    overlap_percent_upart[k][j] = dist2/(math.pi*(1-Lu_part[k])*(1-Lu_part[k]))
+                except:
+                    overlap_percent_upart[j][k] = -1
+                    overlap_percent_upart[k][j] = -1
 
-
+    overlap_avg_upart = Lu_part
+    overlap_avg_upart = row_sum(overlap_percent_upart)
+    asc_indices2 = np.argsort(overlap_avg_upart)
+    desc_indices2 = asc_indices2[::-1]
+    ret = desc_indices2[:wk]
+    info_pairs = [(i, overlap_avg_upart[i]) for i in desc_indices2]
+    #print('info_pairs',info_pairs)
+    print('k',wk)
+    print('returned from worstk func,',ret)
+    return tuple(ret),info_pairs
 
 def compute_py(train_loader, args):
     """compute the base probabilities"""
