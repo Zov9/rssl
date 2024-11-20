@@ -742,11 +742,11 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         totalabcloss=abcloss+abcloss1+abcloss2
         #Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
         Lx = (F.cross_entropy(logits_x, all_targets[:batch_size],
-                                    reduction='none') ).mean()
+                                    reduction='none') * int_mask1 ).mean()
         #print('int mask__',int_mask)
         #print('select mask__',select_mask)
         Lu = (F.cross_entropy(logits_u, all_targets[batch_size:],
-                                    reduction='none')  * select_mask).mean()
+                                    reduction='none')  * int_mask * select_mask).mean()
 
 
         #print('!!!select mask!!!')  #64*2 len = 128
