@@ -83,17 +83,17 @@ parser.add_argument('--lam', default=1, type=float,
                         help='coeffcient of closs')
 parser.add_argument('--nesterov', action='store_true', default=True,
                         help='use nesterov momentum')
-parser.add_argument('--conu', default=False,
+parser.add_argument('--conu', default=False,type= bool,
                         help='Contrastive Loss on datau use or not')
 parser.add_argument('--cl12',type = float, default=1.0,
                         help='coffecient of adjustment_l12')
 parser.add_argument('--lam1', default=0.05, type=float,
                         help='coeffcient of OECC loss')
-parser.add_argument('--use-la', default=False,
+parser.add_argument('--use-la', default=0, type= int,
                         help='Contrastive Loss on datau use or not')
-parser.add_argument('--comb', default=False,
+parser.add_argument('--comb', default=0,type= int,
                         help='whether to use lx lu lxb lub abcloss together ')
-parser.add_argument('--use-sgd', default=False,
+parser.add_argument('--use-sgd', default=0,type= int,
                         help='whether to use sgd as optimizer ')
 parser.add_argument('--threshold', default=0.95, type=float,
                         help='pseudo label threshold')
@@ -113,11 +113,11 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
                         help='dynamic threshold for worst class')      
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
-parser.add_argument('--usedyth', default=True,
+parser.add_argument('--usedyth', default=0,type= int,
                         help='whether to use dynamic threshold')         
 parser.add_argument('--lbdcl', default=0.05, type=float,
                         help='lambda of contrastive loss')     
-parser.add_argument('--usecsl', default=False,
+parser.add_argument('--usecsl', default=0,type= int,
                         help='whether to use cost-sensitive learning')  
 parser.add_argument('--lbdcsl', default=1.5, type=float,
                         help='lambda of cost-sensitive loss')         
@@ -216,13 +216,17 @@ def main():
 
     train_criterion = SemiLoss()
     criterion = nn.CrossEntropyLoss()
-    if(args.use_sgd == False):
+    '''
+    if(args.use_sgd == 0):
         optimizer = optim.Adam(params, lr=args.lr)
         print('Adam')
     else:
         optimizer = optim.SGD(params, lr=args.lr1,
                           momentum=0.9, nesterov=args.nesterov)
         print('SGD')
+    '''
+    optimizer = optim.Adam(params, lr=args.lr)
+    print('Adam')
     scheduler = get_cosine_schedule_with_warmup(
         optimizer, args.warmup, 250000)
     ema_optimizer = WeightEMA(model, ema_model, alpha=args.ema_decay)
@@ -380,7 +384,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     dict_from_pairs = {index: value for index, value in info_pairs}   
 
     for item in worst_k:
-            if info_pairs is not None and epoch>100 and args.usedyth == True :  #add epoch > 100 after checked no bug
+            if info_pairs is not None and epoch>100 and args.usedyth == 1 :  #add epoch > 100 after checked no bug
                 print(' calculating dynamic threshold...... ')
                 biggest_value = max(dict_from_pairs.values()) 
                 #mean_value = statistics.mean(dict_from_pairs.values())
@@ -513,7 +517,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         int_mask = torch.ones_like(select_mask, dtype=torch.float).cuda()
         int_mask1 = torch.ones(batch_size).cuda()
 
-        if args.usecsl and epoch>100:
+        if args.usecsl == 1 and epoch>100:
             print('Use cost-sensitive learning')
             for i, p in enumerate(p_hat_mx_tmp):
                 if p.item() in worst_k:
@@ -738,11 +742,11 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         totalabcloss=abcloss+abcloss1+abcloss2
         #Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
         Lx = (F.cross_entropy(logits_x, all_targets[:batch_size],
-                                    reduction='none') * int_mask1).mean()
+                                    reduction='none') ).mean()
         #print('int mask__',int_mask)
         #print('select mask__',select_mask)
         Lu = (F.cross_entropy(logits_u, all_targets[batch_size:],
-                                    reduction='none') * int_mask * select_mask).mean()
+                                    reduction='none')  * select_mask).mean()
 
 
         #print('!!!select mask!!!')  #64*2 len = 128
@@ -765,7 +769,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         #loss = Lx + Lu+totalabcloss
         #if args.use_la == True and epoch>100:
-        if args.use_la :
+        print('args.use-la',args.use_la)
+        if args.use_la == 1 :
             loss = Lx_b + Lu_b #+totalabcloss
             print('YES use-la logit adjustment')
         #elif args.comb == True and epoch>100:
@@ -847,9 +852,11 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        if args.use_sgd:
+        '''
+        if args.use_sgd == 1:
             print('using sgd... updating sgd params')
             scheduler.step()
+        '''
         ema_optimizer.step()
 
         part8_end_time = time.time()
