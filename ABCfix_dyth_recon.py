@@ -54,7 +54,7 @@ parser.add_argument('--out', default='result',
 # Miscs
 parser.add_argument('--manualSeed', type=int, default=0, help='manual seed')
 #Device options
-parser.add_argument('--gpu', default='3', type=str,
+parser.add_argument('--gpu', default='0', type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 # Method options
 parser.add_argument('--num_max', type=int, default=1500,
@@ -83,21 +83,17 @@ parser.add_argument('--lam', default=1, type=float,
                         help='coeffcient of closs')
 parser.add_argument('--nesterov', action='store_true', default=True,
                         help='use nesterov momentum')
-parser.add_argument('--oe', default=False,
-                        help='OECC Loss use or not')
-parser.add_argument('--conu', default=False,
+parser.add_argument('--conu', default=False,type= bool,
                         help='Contrastive Loss on datau use or not')
-parser.add_argument('--oecf',type = float, default=0.65,
-                        help='  ar coffecient ar of OECC loss')
 parser.add_argument('--cl12',type = float, default=1.0,
                         help='coffecient of adjustment_l12')
 parser.add_argument('--lam1', default=0.05, type=float,
                         help='coeffcient of OECC loss')
-parser.add_argument('--use-la', default=False,
+parser.add_argument('--use-la', default=0, type= int,
                         help='Contrastive Loss on datau use or not')
-parser.add_argument('--comb', default=False,
+parser.add_argument('--comb', default=0,type= int,
                         help='whether to use lx lu lxb lub abcloss together ')
-parser.add_argument('--use-sgd', default=False,
+parser.add_argument('--use-sgd', default=0,type= int,
                         help='whether to use sgd as optimizer ')
 parser.add_argument('--threshold', default=0.95, type=float,
                         help='pseudo label threshold')
@@ -117,10 +113,15 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
                         help='dynamic threshold for worst class')      
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
-parser.add_argument('--usedyth', default=True,
-                        help='whether to use dynamic threshold')                     
+parser.add_argument('--usedyth', default=0,type= int,
+                        help='whether to use dynamic threshold')         
+parser.add_argument('--lbdcl', default=0.05, type=float,
+                        help='lambda of contrastive loss')     
+parser.add_argument('--usecsl', default=0,type= int,
+                        help='whether to use cost-sensitive learning')  
+parser.add_argument('--lbdcsl', default=1.5, type=float,
+                        help='lambda of cost-sensitive loss')         
 args = parser.parse_args()
-
 
 #txtpath = "/data/lipeng/ABC/txt/try100_0502.txt"
 
@@ -214,17 +215,26 @@ def main():
 
     train_criterion = SemiLoss()
     criterion = nn.CrossEntropyLoss()
-    if(args.use_sgd == False):
+    '''
+    if(args.use_sgd == 0):
         optimizer = optim.Adam(params, lr=args.lr)
         print('Adam')
     else:
         optimizer = optim.SGD(params, lr=args.lr1,
                           momentum=0.9, nesterov=args.nesterov)
         print('SGD')
+    '''
+    optimizer = optim.Adam(params, lr=args.lr)
+    print('Adam')
     scheduler = get_cosine_schedule_with_warmup(
         optimizer, args.warmup, 250000)
     ema_optimizer = WeightEMA(model, ema_model, alpha=args.ema_decay)
     start_epoch = 0
+
+    worst_k = []
+    info_pairs = []
+    N = len(unlabeled_trainloader.dataset.indices)
+    learning_status = [-1] * N
 
     # Resume
     title = 'ABCfix-' + args.dataset
@@ -235,6 +245,9 @@ def main():
         args.out = os.path.dirname(args.resume)
         checkpoint = torch.load(args.resume)
         start_epoch = checkpoint['epoch']
+        worst_k = checkpoint['worst_k']
+        info_pairs = checkpoint['info_pairs']
+        learning_status = checkpoint['l_status']
         model.load_state_dict(checkpoint['state_dict'])
         ema_model.load_state_dict(checkpoint['ema_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -245,22 +258,15 @@ def main():
         logger.set_names(['Train Loss', 'Train Loss X', 'Train Loss U', 'abcloss','Train Loss X b','Train Loss U b','Train Loss cl','Test Loss', 'Test Acc.'])
 
     #==================
-    #unlabeled_trainloader
-    N = len(unlabeled_trainloader.dataset.indices)
-    
-    learning_status = [-1] * N
-    #==================
-    worst_k = []
     twk = []
-    info_pairs = []
-
+   
     for epoch in range(start_epoch, args.epochs):
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, state['lr']))
-        
+        '''
         if epoch>100:
             args.py_con = compute_py1(labeled_trainloader, worst_k)
             args.adjustment_l12 = compute_adjustment_by_py(args.py_con, args.tau2, args)
-            
+        '''    
         # Training part
         train_loss, train_loss_x, train_loss_u, abcloss, train_loss_x_b, train_loss_u_b, train_loss_cl, worst_k, info_pairs = train(labeled_trainloader,
                                                                                                 unlabeled_trainloader,
@@ -289,6 +295,10 @@ def main():
 
                 'optimizer' : optimizer.state_dict(),
                 'scheduler': scheduler.state_dict(),
+                'worst_k':worst_k,
+                'info_pairs':info_pairs,
+                'l_status':learning_status
+
             }, epoch + 1)
 
     logger.close()
@@ -367,7 +377,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     dict_from_pairs = {index: value for index, value in info_pairs}   
 
     for item in worst_k:
-            if info_pairs is not None and epoch>100 and args.usedyth == True :  #add epoch > 100 after checked no bug
+            if info_pairs is not None and epoch>100 and args.usedyth == 1 :  #add epoch > 100 after checked no bug
                 biggest_value = max(dict_from_pairs.values()) 
                 #mean_value = statistics.mean(dict_from_pairs.values())
                 mean_value = torch.mean(torch.tensor(list(dict_from_pairs.values())), dim=0)
@@ -435,10 +445,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             # threshold per class
             #for c in range(num_class):
             beta = [counter[c] / denominator for c in range(num_class)]
-
-
-            result_arr = [10.0, 9.733333333333333, 9.533333333333333, 9.266666666666667, 9.066666666666666, 8.866666666666667, 8.666666666666666, 8.466666666666667, 8.266666666666667, 8.066666666666666, 7.866666666666666, 7.733333333333333, 7.533333333333333, 7.333333333333333, 7.2, 7.0, 6.866666666666666, 6.733333333333333, 6.533333333333333, 6.4, 6.266666666666667, 6.133333333333334, 5.933333333333334, 5.8, 5.666666666666667, 5.533333333333333, 5.4, 5.333333333333333, 5.2, 5.066666666666666, 4.933333333333334, 4.8, 4.733333333333333, 4.6, 4.533333333333333, 4.4, 4.266666666666667, 4.2, 4.066666666666666, 4.0, 3.933333333333333, 3.8, 3.7333333333333334, 3.6666666666666665, 3.533333333333333, 3.466666666666667, 3.4, 3.3333333333333335, 3.2666666666666666, 3.1333333333333333, 3.066666666666667, 3.0, 2.933333333333333, 2.8666666666666667, 2.8, 2.7333333333333334, 2.6666666666666665, 2.6, 2.533333333333333, 2.533333333333333, 2.466666666666667, 2.4, 2.3333333333333335, 2.2666666666666666, 2.2, 2.2, 2.1333333333333333, 2.066666666666667, 2.0, 2.0, 1.9333333333333333, 1.8666666666666667, 1.8666666666666667, 1.8, 1.7333333333333334, 1.7333333333333334, 1.6666666666666667, 1.6666666666666667, 1.6, 1.5333333333333334, 1.5333333333333334, 1.4666666666666666, 1.4666666666666666, 1.4, 1.4, 1.3333333333333333, 1.3333333333333333, 1.2666666666666666, 1.2666666666666666, 1.2, 1.2, 1.2, 1.1333333333333333, 1.1333333333333333, 1.0666666666666667, 1.0666666666666667, 1.0666666666666667, 1.0, 1.0, 1.0]
-
+            N_SAMPLES_PER_CLASS = make_imb_data(args.num_max, num_class, args.imb_ratio,args.imbalancetype)
+            result_arr = [i/sum(N_SAMPLES_PER_CLASS) for i in N_SAMPLES_PER_CLASS]
             
             # Creating a new counter without key -1
             counter1 = Counter({k: v / result_arr[k] for k, v in counter.items() if k != -1})
@@ -484,44 +492,24 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         
         p_hat = torch.zeros(batch_size, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
         
-        #print("!!!max_p!!!",len(max_p))
-        #print(p_hat[0])
-        #p_hat_mx_tmp = torch.argmax(p_hat,dim = -1)
-        #print(len(p_hat_mx_tmp))
-        #print(p_hat_mx_tmp)
-
-        #worst_k
-
-        #print('worst_k__________----------------_________',worst_k)
-        
-        #dy_threshold =  torch.full((num_class,), 0.95).cuda()
-        
-        #dict_from_pairs = {index: value for index, value in info_pairs}       
-        '''
-        for item in worst_k:
-            if info_pairs is not None and epoch>100 :  #add epoch > 100 after checked no bug
-                biggest_value = max(dict_from_pairs.values()) 
-                #mean_value = statistics.mean(dict_from_pairs.values())
-                mean_value = torch.mean(torch.tensor(list(dict_from_pairs.values())), dim=0)
-                if not math.isnan(dict_from_pairs[item]):
-                    dy_threshold[item] = args.lower_bound + (mean_value/dict_from_pairs[item])*(args.higher_bound-args.lower_bound)
-                    #make sure it is in area (0.5,0.95)
-                    dy_threshold[item] = min(dy_threshold[item],0.95)
-                    dy_threshold[item] = max(dy_threshold[item],0.5)
-                else:
-                    dy_threshold[item] =  args.weakth
-            else:      
-                dy_threshold[item] = args.weakth
-        print('dynamic_thresholds',dy_threshold)
-        '''
         
         selected_thresholds = dy_threshold[p_hat_mx_tmp]
         #print('selected_thresholds',selected_thresholds)
 
         select_mask = max_p.ge(selected_thresholds)
-        #select_mask1 = max_p.ge(0.95)
-        #print('select mask',select_mask)
-        #print('select mask1',select_mask1)
+        int_mask = torch.ones_like(select_mask, dtype=torch.float).cuda()
+        int_mask1 = torch.ones(batch_size).cuda()
+
+        if args.usecsl == 1 and epoch>100:
+            print('Use cost-sensitive learning')
+            for i, p in enumerate(p_hat_mx_tmp):
+                if p.item() in worst_k:
+                    int_mask[i] = args.lbdcsl
+            #print('targets_x',targets_x)
+            for i, p in enumerate(targets_x):
+                if p.item() in worst_k:
+                    int_mask1[i] = args.lbdcsl        
+
         smask = max_p.ge(0.9)
         org_mask = select_mask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
@@ -546,67 +534,67 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         logits = F.softmax(logit)#labeled sample
         logitsu1 = F.softmax(logitu1)#weak aug unlabel
 
-        p1 = F.softmax(logits_x.detach())
+        #p1 = F.softmax(logits_x.detach())
         p2 = F.softmax(outputs_u.detach() - args.cl12 * args.adjustment_l12)
-        p3 = F.softmax(logits_u1.detach())
-        p4 = F.softmax(logits_u2.detach())
-        p34 = F.softmax(logits_u.detach())
+        #p3 = F.softmax(logits_u1.detach())
+        #p4 = F.softmax(logits_u2.detach())
+        #p34 = F.softmax(logits_u.detach())
 
-        p1b = F.softmax(logit.detach())
+        #p1b = F.softmax(logit.detach())
         p2b = F.softmax(logitu1.detach())
-        p3b = F.softmax(logitu2.detach())
-        p4b = F.softmax(logitu3.detach())
-        p34b = F.softmax(logitu23.detach())
+        #p3b = F.softmax(logitu2.detach())
+        #p4b = F.softmax(logitu3.detach())
+        #p34b = F.softmax(logitu23.detach())
 
-        m1,t1 = torch.max(p1,dim =1)
+        #m1,t1 = torch.max(p1,dim =1)
         m2,t2 = torch.max(p2,dim =1)
-        m3,t3 = torch.max(p3,dim =1)
-        m4,t4 = torch.max(p4,dim =1)
-        m34,t34 = torch.max(p34,dim =1)
+        #m3,t3 = torch.max(p3,dim =1)
+        #m4,t4 = torch.max(p4,dim =1)
+        #m34,t34 = torch.max(p34,dim =1)
         t2twice = torch.cat([t2,t2],dim=0).cuda()
 
-        m1b,t1b = torch.max(p1b,dim =1)
+        #m1b,t1b = torch.max(p1b,dim =1)
         m2b,t2b = torch.max(p2b,dim =1)
-        m3b,t3b = torch.max(p3b,dim =1)
-        m4b,t4b = torch.max(p4b,dim =1)
-        m34b,t34b = torch.max(p34b,dim =1)
+        #m3b,t3b = torch.max(p3b,dim =1)
+        #m4b,t4b = torch.max(p4b,dim =1)
+        #m34b,t34b = torch.max(p34b,dim =1)
 
-        msk1w = torch.tensor([index in worst_k for index in t1], dtype=torch.bool)
+        #msk1w = torch.tensor([index in worst_k for index in t1], dtype=torch.bool)
         msk2w = torch.tensor([index in worst_k for index in t2], dtype=torch.bool)
-        msk3w = torch.tensor([index in worst_k for index in t3], dtype=torch.bool)
-        msk4w = torch.tensor([index in worst_k for index in t4], dtype=torch.bool)
-        msk34w = torch.tensor([index in worst_k for index in t34], dtype=torch.bool)
+        #msk3w = torch.tensor([index in worst_k for index in t3], dtype=torch.bool)
+        #msk4w = torch.tensor([index in worst_k for index in t4], dtype=torch.bool)
+        #msk34w = torch.tensor([index in worst_k for index in t34], dtype=torch.bool)
 
-        msk1bw = torch.tensor([index in worst_k for index in t1b], dtype=torch.bool)
+        #msk1bw = torch.tensor([index in worst_k for index in t1b], dtype=torch.bool)
         msk2bw = torch.tensor([index in worst_k for index in t2b], dtype=torch.bool)
-        msk3bw = torch.tensor([index in worst_k for index in t3b], dtype=torch.bool)
-        msk4bw = torch.tensor([index in worst_k for index in t4b], dtype=torch.bool)
-        msk34bw = torch.tensor([index in worst_k for index in t34b], dtype=torch.bool)
+        #msk3bw = torch.tensor([index in worst_k for index in t3b], dtype=torch.bool)
+        #msk4bw = torch.tensor([index in worst_k for index in t4b], dtype=torch.bool)
+        #msk34bw = torch.tensor([index in worst_k for index in t34b], dtype=torch.bool)
 
-        msk1s = m1.ge(args.wkthreshold)
+        #msk1s = m1.ge(args.wkthreshold)
         msk2s = m2.ge(args.wkthreshold)
-        msk3s = m3.ge(args.wkthreshold)
-        msk4s = m4.ge(args.wkthreshold)
-        msk34s = m34.ge(args.wkthreshold)
+        #msk3s = m3.ge(args.wkthreshold)
+        #msk4s = m4.ge(args.wkthreshold)
+        #msk34s = m34.ge(args.wkthreshold)
         
 
-        msk1sb = m1b.ge(args.wkthreshold)
+        #msk1sb = m1b.ge(args.wkthreshold)
         msk2sb = m2b.ge(args.wkthreshold)
-        msk3sb = m3b.ge(args.wkthreshold)
-        msk4sb = m4b.ge(args.wkthreshold)
-        msk34sb = m34b.ge(args.wkthreshold)
+        #msk3sb = m3b.ge(args.wkthreshold)
+        #msk4sb = m4b.ge(args.wkthreshold)
+        #msk34sb = m34b.ge(args.wkthreshold)
 
-        msk1 = m1.ge(args.threshold)
+        #msk1 = m1.ge(args.threshold)
         msk2 = m2.ge(args.threshold)
-        msk3 = m3.ge(args.threshold)
-        msk4 = m4.ge(args.threshold)
-        msk34 = m34.ge(args.threshold)
+        #msk3 = m3.ge(args.threshold)
+        #msk4 = m4.ge(args.threshold)
+        #msk34 = m34.ge(args.threshold)
 
-        msk1b = m1b.ge(args.threshold)
+        #msk1b = m1b.ge(args.threshold)
         msk2b = m2b.ge(args.threshold)
-        msk3b = m3b.ge(args.threshold)
-        msk4b = m4b.ge(args.threshold)
-        msk34b = m34b.ge(args.threshold)
+        #msk3b = m3b.ge(args.threshold)
+        #msk4b = m4b.ge(args.threshold)
+        #msk34b = m34b.ge(args.threshold)
 
 
         msk2zz = msk2w.cuda() & msk2s.cuda()
@@ -616,6 +604,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         finalmask = msk2zz+msk2zzb+msk2z+msk2zb
         fnmask2 = torch.cat([finalmask,finalmask],dim=0).cuda()
 
+        '''
         with torch.no_grad():
             max_prob, hard_label = torch.max(logitsu1, dim=1)
             over_threshold = max_prob >= 0.95
@@ -625,7 +614,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 pseudo_label = hard_label[over_threshold].tolist()
                 for i, l in zip(sample_index, pseudo_label):
                     learning_status[i] = l
-
+        '''
 
 
 
@@ -656,7 +645,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         num_alli+=len(q)
         num_allu+=len(q1)
 
-        targets_x2_1 = torch.tensor([torch.argmax(tensor).item() for tensor in targets_x2])      
+        targets_x2_1 = torch.tensor([torch.argmax(tensor).item() for tensor in targets_x2])   
+        '''   
         for i in range(num_class):
                 #print('targets_x2_1',targets_x2_1)
                 class_mask = (targets_x2_1 == i)
@@ -669,19 +659,19 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 class_mask = (targets_u == i)
                 if class_mask.any():                                                           
                     cls_rep_upsu_all[i].extend(q1[class_mask].detach())
-                                                    
+        '''                                            
         for i in range(num_class):
                 class_mask = (targets_u == i)      
                 #print('len(class_mask)',len(class_mask),'len(select_mask)',len(select_mask),'class_mask[0]',class_mask[0],'select_mask[0]',select_mask[0])          
                 mask_h1 = org_mask*class_mask                
                 if mask_h1.any():                                                                           
                     cls_rep_upsu_part[i].extend(q1[mask_h1.bool()].detach())
-               
+        '''       
         for i in range(num_class):
                 class_mask = (targets_su == i)
                 if class_mask.any():                                                           
                     cls_rep_ureal[i].extend(q1[class_mask].detach())
-
+        '''
         #---------------------------------------------------------------
         
         
@@ -701,7 +691,16 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             select_mask2 * maskforbalanceu * torch.sum(torch.log(logitsu3) * logitsu1.cuda(0).detach(), dim=1))
 
         totalabcloss=abcloss+abcloss1+abcloss2
-        Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
+        #Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
+        Lx = (F.cross_entropy(logits_x, all_targets[:batch_size],
+                                    reduction='none') * int_mask1 ).mean()
+        #print('int mask__',int_mask)
+        #print('select mask__',select_mask)
+        Lu = (F.cross_entropy(logits_u, all_targets[batch_size:],
+                                    reduction='none')  * int_mask * select_mask).mean()
+
+
+
         #print('!!!select mask!!!')  #64*2 len = 128
         #print(select_mask)
         #Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
@@ -713,23 +712,26 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         '''
 
         #0224
-        Lx_b = F.cross_entropy(logit + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
+        Lx_b = (F.cross_entropy(logit + args.adjustment_l2, all_targets[:batch_size], 
+                                    reduction='none') * int_mask1).mean()
 
         Lu_b = (F.cross_entropy(logitu23, t2twice,
-                                    reduction='none') * fnmask2).mean()
+                                    reduction='none') * int_mask *fnmask2).mean()
 
         #loss = Lx + Lu+totalabcloss
-        if args.use_la == True and epoch>100:
+        if args.use_la == 1 and epoch>100:
             loss = Lx_b + Lu_b +totalabcloss
-        elif args.comb == True and epoch>100:
+        
+        elif args.comb == 1 and epoch>100:
             loss = Lx + Lu + Lx_b + Lu_b+totalabcloss
+        
         else:
             loss = Lx + Lu+totalabcloss
         #loss = Lx + Lu_b+totalabcloss
         #criterionu = CSLoss2(temperature=args.closstemp)
         #criterionu = SupConLoss2(temperature=args.closstemp)
-        criterionu = SupConLoss3(temperature=args.closstemp,distance = args.distance)
-        criterionx = SupConLoss6(temperature=args.closstemp,distance=args.distance)
+        #criterionu = SupConLoss3(temperature=args.closstemp,distance = args.distance)
+        #criterionx = SupConLoss6(temperature=args.closstemp,distance=args.distance)
         #criterionu = SupConLoss3(temperature=args.closstemp,distance=args.distance)
         #criterion1 = criterion1.cuda()
         #print('inputs_x[0][:5]',inputs_x[0][:5])
@@ -743,27 +745,28 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #clossu = criterionu(smask,q1,hard_label,worst_k)
 
         #0208 clossu and clossx below
-        clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
+        #clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
         #clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_su)
-        clossx = criterionx(worst_k,logits_x,all_targets[:batch_size])
+        #clossx = criterionx(worst_k,logits_x,all_targets[:batch_size])
 
         #clossu = criterionu(smask,worst_k,q,q1,all_targets[:batch_size],targets_su)
         #clossu = criterionu(smask,q1,targets_su,worst_k)
         #clossx = criterionx(worst_k,logit,all_targets[:batch_size])
 
-     
-        
+
+        '''
         if epoch>100 and args.conu == True:
              #loss = Lx_b+Lu_b+totalabcloss
             #if not torch.isnan(clossu).any():
                 loss=loss+clossu #+clossx 
+        '''
         '''        
         if epoch>400 and args.oe == True:
                 loss+=args.lam1*OECCloss(max_prob,args.oecf)   
         '''         
         print('Total loss',loss)
 
-
+        '''
         lxw = clsloss(logit, targets_x,num_class,lxct)
         #print('logits_u  len',len(logits_u),'select mask  len',len(select_mask))
         luw1 = clsloss(logitu2, hard_label,num_class,luct,org_mask)
@@ -774,7 +777,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print('len targets_su',len(targets_su),targets_su[0])
         lur = clsloss(logitu1,targets_su,num_class,lurct)
         Lu_real_w1+=lur
-        
+        '''
         
 
         # record loss
@@ -784,13 +787,15 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         losses_x_b.update(Lx_b.item(), inputs_x.size(0))
         losses_u_b.update(Lu_b.item(), inputs_x.size(0))
         losses_abc.update(abcloss.item(), inputs_x.size(0))
-        losses_cl.update(clossu.item(), inputs_x.size(0))
+        #losses_cl.update(clossu.item(), inputs_x.size(0))
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        if args.use_sgd:
+        '''
+        if args.use_sgd == 1:
             scheduler.step()
+        '''
         ema_optimizer.step()
 
         batch_time.update(time.time() - end)
@@ -832,12 +837,12 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             file.write('\n')
     '''  
             
-
+    '''
     Lx_w = Lx_w.tolist()    
     Lu_w = Lu_w.tolist()
     Lu_real_w1= Lu_real_w1.tolist()
     Labc_w = Labc_w.tolist()
-
+    '''
 
 
     ############################################
@@ -846,6 +851,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #cls_rep_x,      cls_rep_ureal,       cls_rep_upsu_part,       cls_rep_upsu_all = {}
     current_time = datetime.now()
     print("523 Current Time:", current_time)
+    '''
     for label, representations in cls_rep_x.items():
             class_center = torch.mean(torch.stack(representations), dim=0)
             #print('class_center',len(class_center))
@@ -854,6 +860,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     for label, representations in cls_rep_ureal.items():
             class_center = torch.mean(torch.stack(representations), dim=0)
             cls_center_ureal[label] = class_center
+    '''
     for label, representations in cls_rep_upsu_part.items():
             try:
                 class_center = torch.mean(torch.stack(representations), dim=0)
@@ -861,25 +868,27 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             except:
                 class_center = torch.zeros(128).cuda()
             cls_center_upsu_part[label] = class_center
+    '''
     for label, representations in cls_rep_upsu_all.items():
             try:
                 class_center = torch.mean(torch.stack(representations), dim=0)
             except:
                 class_center = torch.zeros(128).cuda()
             cls_center_upsu_all[label] = class_center
+    '''
     current_time = datetime.now()
     print("546 Current Time:", current_time)
-    distx = cal_cent_dist(cls_center_x,spec_dist,'labeled center',txtpath)
-    distur = cal_cent_dist(cls_center_ureal,spec_dist,'unlabeled real center',txtpath)
+    #distx = cal_cent_dist(cls_center_x,spec_dist,'labeled center',txtpath)
+    #distur = cal_cent_dist(cls_center_ureal,spec_dist,'unlabeled real center',txtpath)
     distus = cal_cent_dist(cls_center_upsu_part,spec_dist,'unlabeled selected center',txtpath)
-    distua = cal_cent_dist(cls_center_upsu_all,spec_dist,'unlabeled all center',txtpath)
+    #distua = cal_cent_dist(cls_center_upsu_all,spec_dist,'unlabeled all center',txtpath)
 
         # Calculate the nearest and furthest samples for each pair of classes
     num_classes = num_class
     current_time = datetime.now()    
 
     print("555 Current Time:", current_time)
-    
+    '''
     fdx = cal_fn_pair3(cls_rep_x,cls_center_x,num_classes,'cls_rep_x',txtpath)
 
     current_time = datetime.now()
@@ -889,18 +898,18 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
     current_time = datetime.now()
     print("561 Current Time:", current_time)
-  
+    '''
     fdus = cal_fn_pair4(cls_rep_upsu_part,cls_center_upsu_part,num_classes,'cls_rep_upsu_part',txtpath,args.dismod,args.diskey)
-   
+    '''
     current_time = datetime.now()
     print("564 Current Time:", current_time)
                            
     fdua = cal_fn_pair3(cls_rep_upsu_all,cls_center_upsu_all,num_classes,'cls_rep_upsu_all',txtpath)
-                
+    '''               
     current_time = datetime.now()
     print("567 Current Time:", current_time)
 
-    worst_k,info_pairs = worstk(args.wk,distus,fdus)
+    worst_k,info_pairs = worstk(args.wk,num_class,distus,fdus)
 
         ############################################
         ############################################
@@ -910,7 +919,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             file.write('Worst k predicted\n') 
             file.write(str(worst_k))
             file.write('\n') 
-
+            '''
             file.write('Lx_w\n') 
             for item in Lx_w:
                 file.write("%s," % item)
@@ -925,6 +934,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             for item in Lu_real_w1:
                 file.write("%s," % item)
             file.write('\n') 
+            '''
   
     return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg, losses_x_b.avg,  losses_u_b.avg, losses_cl.avg,  worst_k, info_pairs)
 
