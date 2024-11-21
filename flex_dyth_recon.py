@@ -31,8 +31,8 @@ from datetime import datetime
 from losses import *
 from uts import *
 
-import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
+#import torch.multiprocessing
+#torch.multiprocessing.set_sharing_strategy('file_system')
 
 parser = argparse.ArgumentParser(description='PyTorch fixMatch Training')
 # Optimization options
@@ -83,17 +83,17 @@ parser.add_argument('--lam', default=1, type=float,
                         help='coeffcient of closs')
 parser.add_argument('--nesterov', action='store_true', default=True,
                         help='use nesterov momentum')
-parser.add_argument('--conu', default=False,
+parser.add_argument('--conu', default=False,type= bool,
                         help='Contrastive Loss on datau use or not')
 parser.add_argument('--cl12',type = float, default=1.0,
                         help='coffecient of adjustment_l12')
 parser.add_argument('--lam1', default=0.05, type=float,
                         help='coeffcient of OECC loss')
-parser.add_argument('--use-la', default=False,
+parser.add_argument('--use-la', default=0, type= int,
                         help='Contrastive Loss on datau use or not')
-parser.add_argument('--comb', default=False,
+parser.add_argument('--comb', default=0,type= int,
                         help='whether to use lx lu lxb lub abcloss together ')
-parser.add_argument('--use-sgd', default=False,
+parser.add_argument('--use-sgd', default=0,type= int,
                         help='whether to use sgd as optimizer ')
 parser.add_argument('--threshold', default=0.95, type=float,
                         help='pseudo label threshold')
@@ -113,12 +113,15 @@ parser.add_argument('--lower_bound', default=0.55, type=float,
                         help='dynamic threshold for worst class')      
 parser.add_argument('--higher_bound', default=0.7, type=float,
                         help='dynamic threshold for worst class')   
-parser.add_argument('--usedyth', default=True,
-                        help='whether to use dynamic threshold')    
+parser.add_argument('--usedyth', default=0,type= int,
+                        help='whether to use dynamic threshold')         
 parser.add_argument('--lbdcl', default=0.05, type=float,
-                        help='lambda of contrastive loss')                   
+                        help='lambda of contrastive loss')     
+parser.add_argument('--usecsl', default=0,type= int,
+                        help='whether to use cost-sensitive learning')  
+parser.add_argument('--lbdcsl', default=1.5, type=float,
+                        help='lambda of cost-sensitive loss')         
 args = parser.parse_args()
-
 
 #txtpath = "/data/lipeng/ABC/txt/try100_0502.txt"
 
@@ -212,13 +215,17 @@ def main():
 
     train_criterion = SemiLoss()
     criterion = nn.CrossEntropyLoss()
-    if(args.use_sgd == False):
+    '''
+    if(args.use_sgd == 0):
         optimizer = optim.Adam(params, lr=args.lr)
         print('Adam')
     else:
         optimizer = optim.SGD(params, lr=args.lr1,
                           momentum=0.9, nesterov=args.nesterov)
         print('SGD')
+    '''
+    optimizer = optim.Adam(params, lr=args.lr)
+    print('Adam')
     scheduler = get_cosine_schedule_with_warmup(
         optimizer, args.warmup, 250000)
     ema_optimizer = WeightEMA(model, ema_model, alpha=args.ema_decay)
@@ -513,6 +520,19 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print('selected_thresholds',selected_thresholds)
 
         select_mask_ = max_p.ge(selected_thresholds)
+        int_mask = torch.ones_like(select_mask_, dtype=torch.float).cuda()
+        int_mask1 = torch.ones(batch_size).cuda()
+
+        if args.usecsl == 1 and epoch>100:
+            print('Use cost-sensitive learning')
+            for i, p in enumerate(p_hat_mx_tmp):
+                if p.item() in worst_k:
+                    int_mask[i] = args.lbdcsl
+            #print('targets_x',targets_x)
+            for i, p in enumerate(targets_x):
+                if p.item() in worst_k:
+                    int_mask1[i] = args.lbdcsl
+        #print('int_mask',int_mask)
         osmask = select_mask_
         #select_mask1 = max_p.ge(0.95)
         #print('select mask',select_mask)
@@ -522,6 +542,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #la没效果 怀疑是mask的问题 edited on 24-09-26
         org_mask = select_mask
         select_mask = torch.cat([select_mask_, select_mask_], 0).float()
+        int_mask = torch.cat([int_mask, int_mask], 0).float()
 
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
         all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
@@ -543,25 +564,25 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         logits = F.softmax(logit)#labeled sample
         logitsu1 = F.softmax(logitu1)#weak aug unlabel
 
-        p1 = F.softmax(logits_x.detach())
+        #p1 = F.softmax(logits_x.detach())
         p2 = F.softmax(outputs_u.detach() - args.cl12 * args.adjustment_l12)
-        p3 = F.softmax(logits_u1.detach())
-        p4 = F.softmax(logits_u2.detach())
-        p34 = F.softmax(logits_u.detach())
+        #p3 = F.softmax(logits_u1.detach())
+        #p4 = F.softmax(logits_u2.detach())
+        #p34 = F.softmax(logits_u.detach())
 
-        p1b = F.softmax(logit.detach())
-        p2b = F.softmax(outputs_u.detach())
-        p3b = F.softmax(logitu2.detach())
-        p4b = F.softmax(logitu3.detach())
-        p34b = F.softmax(logitu23.detach())
+        #p1b = F.softmax(logit.detach())
+        #p2b = F.softmax(outputs_u.detach())
+        #p3b = F.softmax(logitu2.detach())
+        #p4b = F.softmax(logitu3.detach())
+        #p34b = F.softmax(logitu23.detach())
 
-        m1,t1 = torch.max(p1,dim =1)
+        #m1,t1 = torch.max(p1,dim =1)
         m2,t2 = torch.max(p2,dim =1)
-        m3,t3 = torch.max(p3,dim =1)
-        m4,t4 = torch.max(p4,dim =1)
-        m34,t34 = torch.max(p34,dim =1)
+        #m3,t3 = torch.max(p3,dim =1)
+        #m4,t4 = torch.max(p4,dim =1)
+        #m34,t34 = torch.max(p34,dim =1)
         t2twice = torch.cat([t2,t2],dim=0).cuda()
-
+        '''
         m1b,t1b = torch.max(p1b,dim =1)
         m2b,t2b = torch.max(p2b,dim =1)
         m3b,t3b = torch.max(p3b,dim =1)
@@ -612,7 +633,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         msk2zb = msk2b.cuda() 
         finalmask = msk2zz+msk2zzb+msk2z+msk2zb
         fnmask2 = torch.cat([finalmask,finalmask],dim=0).cuda()
-
+        '''
         with torch.no_grad():
             max_prob, hard_label = torch.max(logitsu1, dim=1)
             over_threshold = max_prob >= 0.95
@@ -654,6 +675,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         num_allu+=len(q1)
 
         targets_x2_1 = torch.tensor([torch.argmax(tensor).item() for tensor in targets_x2])      
+        '''
         for i in range(num_class):
                 #print('targets_x2_1',targets_x2_1)
                 class_mask = (targets_x2_1 == i)
@@ -666,19 +688,19 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 class_mask = (targets_u == i)
                 if class_mask.any():                                                           
                     cls_rep_upsu_all[i].extend(q1[class_mask].detach())
-                                                    
+        '''                                            
         for i in range(num_class):
                 class_mask = (targets_u == i)      
                 #print('len(class_mask)',len(class_mask),'len(select_mask)',len(select_mask),'class_mask[0]',class_mask[0],'select_mask[0]',select_mask[0])          
                 mask_h1 = org_mask*class_mask                
                 if mask_h1.any():                                                                           
                     cls_rep_upsu_part[i].extend(q1[mask_h1.bool()].detach())
-               
+        '''       
         for i in range(num_class):
                 class_mask = (targets_su == i)
                 if class_mask.any():                                                           
                     cls_rep_ureal[i].extend(q1[class_mask].detach())
-
+        '''
         #---------------------------------------------------------------
         
         
@@ -698,7 +720,13 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             select_mask2 * maskforbalanceu * torch.sum(torch.log(logitsu3) * logitsu1.cuda(0).detach(), dim=1))
 
         totalabcloss=abcloss+abcloss1+abcloss2
-        Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
+        #Lx, Lu = criterion(logits_x, all_targets[:batch_size], logits_u, all_targets[batch_size:], select_mask)
+
+        Lx = (F.cross_entropy(logits_x, all_targets[:batch_size],
+                                    reduction='none') * int_mask1 ).mean()
+        Lu = (F.cross_entropy(logits_u, all_targets[batch_size:],
+                                    reduction='none')  * int_mask * select_mask).mean()
+
         #print('!!!select mask!!!')  #64*2 len = 128
         #print(select_mask)
         #Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
@@ -710,14 +738,16 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         '''
 
         #0224
-        Lx_b = F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size], reduction='mean')
+        Lx_b = (F.cross_entropy(logits_x + args.adjustment_l2, all_targets[:batch_size],
+                                    reduction='none') * int_mask1).mean()
 
         Lu_b = (F.cross_entropy(logits_u, t2twice,
-                                    reduction='none') * select_mask).mean()
+                                    reduction='none')  * int_mask * select_mask).mean()
 
         #loss = Lx + Lu+totalabcloss
         #if args.use_la == True and epoch>100:
-        if args.use_la :
+        
+        if args.use_la == 1 :
             loss = Lx_b + Lu_b #+totalabcloss
             print('YES use-la logit adjustment')
         #elif args.comb == True and epoch>100:
@@ -728,8 +758,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #loss = Lx + Lu_b+totalabcloss
         #criterionu = CSLoss2(temperature=args.closstemp)
         #criterionu = SupConLoss2(temperature=args.closstemp)
-        criterionu = SupConLoss3(temperature=args.closstemp,distance = args.distance)
-        criterionx = SupConLoss6(temperature=args.closstemp,distance=args.distance)
+        #criterionu = SupConLoss3(temperature=args.closstemp,distance = args.distance)
+        #criterionx = SupConLoss6(temperature=args.closstemp,distance=args.distance)
         #criterionu = SupConLoss3(temperature=args.closstemp,distance=args.distance)
         #criterion1 = criterion1.cuda()
         #print('inputs_x[0][:5]',inputs_x[0][:5])
@@ -744,9 +774,9 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
         #0208 clossu and clossx below
         worst_k_flex = [i for i in range(num_class)]
-        clossu = criterionu(osmask,worst_k_flex,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
+        #clossu = criterionu(osmask,worst_k_flex,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
         #clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_su)
-        clossx = criterionx(worst_k,logits_x,all_targets[:batch_size])
+        #clossx = criterionx(worst_k,logits_x,all_targets[:batch_size])
 
         #clossu = criterionu(smask,worst_k,q,q1,all_targets[:batch_size],targets_su)
         #clossu = criterionu(smask,q1,targets_su,worst_k)
@@ -763,17 +793,17 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         print('all_targets[:batch_size] shape',all_targets[:batch_size].shape)
         print('targets_u.shape',targets_u.shape)
         '''
-        
+        '''
         if epoch>1 and args.conu:
              #loss = Lx_b+Lu_b+totalabcloss
             #if not torch.isnan(clossu).any():
                 print('add conu')
                 
                 loss=loss+args.lbdcl * clossu #+clossx 
-            
+        '''   
         print('Total loss',loss)
 
-
+        '''
         lxw = clsloss(logit, targets_x,num_class,lxct)
         #print('logits_u  len',len(logits_u),'select mask  len',len(select_mask))
         luw1 = clsloss(logitu2, hard_label,num_class,luct,org_mask)
@@ -784,7 +814,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print('len targets_su',len(targets_su),targets_su[0])
         lur = clsloss(logitu1,targets_su,num_class,lurct)
         Lu_real_w1+=lur
-        
+        '''
         
 
         # record loss
@@ -794,14 +824,16 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         losses_x_b.update(Lx_b.item(), inputs_x.size(0))
         losses_u_b.update(Lu_b.item(), inputs_x.size(0))
         losses_abc.update(abcloss.item(), inputs_x.size(0))
-        losses_cl.update(clossu.item(), inputs_x.size(0))
+        #losses_cl.update(clossu.item(), inputs_x.size(0))
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        '''
         if args.use_sgd:
             print('using sgd... updating sgd params')
             scheduler.step()
+        '''
         ema_optimizer.step()
 
         batch_time.update(time.time() - end)
@@ -843,12 +875,12 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             file.write('\n')
     '''  
             
-
+    '''
     Lx_w = Lx_w.tolist()    
     Lu_w = Lu_w.tolist()
     Lu_real_w1= Lu_real_w1.tolist()
     Labc_w = Labc_w.tolist()
-
+    '''
 
 
     ############################################
@@ -857,6 +889,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #cls_rep_x,      cls_rep_ureal,       cls_rep_upsu_part,       cls_rep_upsu_all = {}
     current_time = datetime.now()
     print("523 Current Time:", current_time)
+    '''
     for label, representations in cls_rep_x.items():
             class_center = torch.mean(torch.stack(representations), dim=0)
             #print('class_center',len(class_center))
@@ -865,6 +898,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     for label, representations in cls_rep_ureal.items():
             class_center = torch.mean(torch.stack(representations), dim=0)
             cls_center_ureal[label] = class_center
+    '''
     for label, representations in cls_rep_upsu_part.items():
             try:
                 class_center = torch.mean(torch.stack(representations), dim=0)
@@ -872,46 +906,48 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             except:
                 class_center = torch.zeros(128).cuda()
             cls_center_upsu_part[label] = class_center
+    '''
     for label, representations in cls_rep_upsu_all.items():
             try:
                 class_center = torch.mean(torch.stack(representations), dim=0)
             except:
                 class_center = torch.zeros(128).cuda()
             cls_center_upsu_all[label] = class_center
+    '''
     current_time = datetime.now()
     print("546 Current Time:", current_time)
-    distx = cal_cent_dist(cls_center_x,spec_dist,'labeled center',txtpath)
-    distur = cal_cent_dist(cls_center_ureal,spec_dist,'unlabeled real center',txtpath)
+    #distx = cal_cent_dist(cls_center_x,spec_dist,'labeled center',txtpath)
+    #distur = cal_cent_dist(cls_center_ureal,spec_dist,'unlabeled real center',txtpath)
     distus = cal_cent_dist(cls_center_upsu_part,spec_dist,'unlabeled selected center',txtpath)
-    distua = cal_cent_dist(cls_center_upsu_all,spec_dist,'unlabeled all center',txtpath)
+    #distua = cal_cent_dist(cls_center_upsu_all,spec_dist,'unlabeled all center',txtpath)
 
         # Calculate the nearest and furthest samples for each pair of classes
     num_classes = num_class
-    current_time = datetime.now()    
+    #current_time = datetime.now()    
 
-    print("555 Current Time:", current_time)
+    #print("555 Current Time:", current_time)
     
-    fdx = cal_fn_pair3(cls_rep_x,cls_center_x,num_classes,'cls_rep_x',txtpath)
+    #fdx = cal_fn_pair3(cls_rep_x,cls_center_x,num_classes,'cls_rep_x',txtpath)
 
-    current_time = datetime.now()
-    print("558 Current Time:", current_time)
+    #current_time = datetime.now()
+    #print("558 Current Time:", current_time)
     
-    fdur = cal_fn_pair3(cls_rep_ureal,cls_center_ureal,num_classes,'cls_rep_ureal',txtpath)    
+    #fdur = cal_fn_pair3(cls_rep_ureal,cls_center_ureal,num_classes,'cls_rep_ureal',txtpath)    
 
-    current_time = datetime.now()
-    print("561 Current Time:", current_time)
+    #current_time = datetime.now()
+    #print("561 Current Time:", current_time)
   
     fdus = cal_fn_pair4(cls_rep_upsu_part,cls_center_upsu_part,num_classes,'cls_rep_upsu_part',txtpath,args.dismod,args.diskey)
    
-    current_time = datetime.now()
-    print("564 Current Time:", current_time)
+    #current_time = datetime.now()
+    #print("564 Current Time:", current_time)
                            
-    fdua = cal_fn_pair3(cls_rep_upsu_all,cls_center_upsu_all,num_classes,'cls_rep_upsu_all',txtpath)
+    #fdua = cal_fn_pair3(cls_rep_upsu_all,cls_center_upsu_all,num_classes,'cls_rep_upsu_all',txtpath)
                 
     current_time = datetime.now()
     print("567 Current Time:", current_time)
 
-    worst_k,info_pairs = worstk(args.wk,distus,fdus)
+    worst_k,info_pairs = worstk(args.wk,num_class,distus,fdus)
 
         ############################################
         ############################################
@@ -921,7 +957,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             file.write('Worst k predicted\n') 
             file.write(str(worst_k))
             file.write('\n') 
-
+            '''
             file.write('Lx_w\n') 
             for item in Lx_w:
                 file.write("%s," % item)
@@ -936,6 +972,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             for item in Lu_real_w1:
                 file.write("%s," % item)
             file.write('\n') 
+            '''
   
     return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg, losses_x_b.avg,  losses_u_b.avg, losses_cl.avg,  worst_k, info_pairs)
 

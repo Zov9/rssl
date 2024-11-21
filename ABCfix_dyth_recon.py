@@ -83,7 +83,7 @@ parser.add_argument('--lam', default=1, type=float,
                         help='coeffcient of closs')
 parser.add_argument('--nesterov', action='store_true', default=True,
                         help='use nesterov momentum')
-parser.add_argument('--conu', default=False,type= bool,
+parser.add_argument('--conu', default=0,type= int,
                         help='Contrastive Loss on datau use or not')
 parser.add_argument('--cl12',type = float, default=1.0,
                         help='coffecient of adjustment_l12')
