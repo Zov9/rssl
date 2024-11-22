@@ -144,7 +144,7 @@ elif args.dataset=='cifar100':
     num_class = 100
 
 args.out = './results/' + dsstr + '_' + args.date + 't' + args.tempt
-args.txtp = '/data/lipeng/ABC/txt/' + dsstr + '_' + args.date + 't'
+args.txtp = './txt/' + dsstr + '_' + args.date + 't'
 print('args.out is =====>',args.out)
 print('args.txtp is =====>', args.txtp)
 txtpath = args.txtp+args.tempt+'.txt'
@@ -514,7 +514,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         org_mask = select_mask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
         int_mask = torch.cat([int_mask, int_mask], 0).float()
-        
+
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
         all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
 
