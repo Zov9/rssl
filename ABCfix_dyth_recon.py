@@ -394,6 +394,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     print('dynamic_thresholds',dy_threshold) 
 
     for batch_idx in range(args.val_iteration):
+        batch_start_time = time.time()
         try:
             #inputs_x, targets_x, _ = labeled_train_iter.next()
             inputs_x, targets_x, _ = next(labeled_train_iter)
@@ -462,6 +463,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         # Generate the pseudo labels
         #
         #！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        part1_end_time = time.time()
+        #PART 1 END
         with torch.no_grad():
             # Generate the pseudo labels by aggregation and sharpening
             q1=model(inputs_u)
@@ -486,12 +489,15 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         q2 = model(inputs_u2)
         q3 = model(inputs_u3)
 
+        part2_end_time = time.time()
+        #PART 2 END
         max_p, p_hat = torch.max(targets_u2, dim=1)
         #print("len(max_p)",len(max_p),"max_p[0]",max_p[0])
         p_hat_mx_tmp  = p_hat
         
         p_hat = torch.zeros(batch_size, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
         
+
         
         selected_thresholds = dy_threshold[p_hat_mx_tmp]
         #print('selected_thresholds',selected_thresholds)
@@ -532,6 +538,9 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         logitu3 = model.classify2(q3)
         logitu23 = torch.cat([logitu2,logitu3],dim=0)
 
+
+        part3_end_time = time.time()
+        #PART 3 END
         logits = F.softmax(logit)#labeled sample
         logitsu1 = F.softmax(logitu1)#weak aug unlabel
 
@@ -573,14 +582,14 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #msk34bw = torch.tensor([index in worst_k for index in t34b], dtype=torch.bool)
 
         #msk1s = m1.ge(args.wkthreshold)
-        msk2s = m2.ge(args.wkthreshold)
+        msk2s = m2.ge(selected_thresholds)
         #msk3s = m3.ge(args.wkthreshold)
         #msk4s = m4.ge(args.wkthreshold)
         #msk34s = m34.ge(args.wkthreshold)
         
 
         #msk1sb = m1b.ge(args.wkthreshold)
-        msk2sb = m2b.ge(args.wkthreshold)
+        msk2sb = m2b.ge(selected_thresholds)
         #msk3sb = m3b.ge(args.wkthreshold)
         #msk4sb = m4b.ge(args.wkthreshold)
         #msk34sb = m34b.ge(args.wkthreshold)
@@ -642,7 +651,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         # targets_su   q1  real
         # targets_u2   q1  pseu    
         # targets_u2   q1  pseu select_mask   
-
+        part4_end_time = time.time()
+        #PART 4 END
         num_alli+=len(q)
         num_allu+=len(q1)
 
@@ -677,7 +687,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         
         
             
-
+        part5_end_time = time.time()
+        #PART 5 END
         
 
 
@@ -766,7 +777,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 loss+=args.lam1*OECCloss(max_prob,args.oecf)   
         '''         
         print('Total loss',loss)
-
+        part6_end_time = time.time()
+        #PART 6 END
         '''
         lxw = clsloss(logit, targets_x,num_class,lxct)
         #print('logits_u  len',len(logits_u),'select mask  len',len(select_mask))
@@ -788,6 +800,9 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         losses_x_b.update(Lx_b.item(), inputs_x.size(0))
         losses_u_b.update(Lu_b.item(), inputs_x.size(0))
         losses_abc.update(abcloss.item(), inputs_x.size(0))
+
+        part7_end_time = time.time()
+        #PART 7 END
         #losses_cl.update(clossu.item(), inputs_x.size(0))
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -798,6 +813,32 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             scheduler.step()
         '''
         ema_optimizer.step()
+
+        part8_end_time = time.time()
+        #PART 8 END
+        sum_time = part8_end_time - batch_start_time
+        pt1 = part1_end_time - batch_start_time
+        pt2 = part2_end_time - part1_end_time
+        pt3 = part3_end_time - part2_end_time
+        pt4 = part4_end_time - part3_end_time
+        pt5 = part5_end_time - part4_end_time
+        pt6 = part6_end_time - part5_end_time
+        pt7 = part7_end_time - part6_end_time
+        pt8 = part8_end_time - part7_end_time
+        pt1_per = pt1/sum_time
+        pt2_per = pt2/sum_time
+        pt3_per = pt3/sum_time
+        pt4_per = pt4/sum_time
+        pt5_per = pt5/sum_time
+        pt6_per = pt6/sum_time
+        pt7_per = pt7/sum_time
+        pt8_per = pt8/sum_time
+        
+        probabilities = [pt1_per, pt2_per, pt3_per, pt4_per, pt5_per, pt6_per, pt7_per, pt8_per]
+
+        print(' '.join([f"part{i}: {p * 100:.1f}%" for i, p in enumerate(probabilities, 1)]))
+
+
 
         batch_time.update(time.time() - end)
         end = time.time()
