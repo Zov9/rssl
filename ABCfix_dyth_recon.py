@@ -513,7 +513,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         smask = max_p.ge(0.9)
         org_mask = select_mask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
-
+        int_mask = torch.cat([int_mask, int_mask], 0).float()
+        
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
         all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
 

@@ -540,7 +540,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         smask = max_p.ge(0.9)
         #smask 这里是用在closs里面的 到底是用这个还是 select_mask 后面可以再看
         #la没效果 怀疑是mask的问题 edited on 24-09-26
-        org_mask = select_mask
+        org_mask = select_mask_
         select_mask = torch.cat([select_mask_, select_mask_], 0).float()
         int_mask = torch.cat([int_mask, int_mask], 0).float()
 
