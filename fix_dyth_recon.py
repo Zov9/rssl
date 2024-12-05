@@ -122,7 +122,9 @@ parser.add_argument('--usecsl', default=0,type= int,
 parser.add_argument('--lbdcsl', default=1.5, type=float,
                         help='lambda of cost-sensitive loss')      
 parser.add_argument('--repmod', default=1, type=int,
-                        help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')        
+                        help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')   
+parser.add_argument('--omaskmod', default=1, type=int,
+                        help='what is mask of samples used to calculate distance and area, 1 for dynamic one and 2 for fixed 0/95')      
 args = parser.parse_args()
 
 
@@ -554,10 +556,13 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #select_mask1 = max_p.ge(0.95)
         #print('select mask',select_mask)
         #print('select mask1',select_mask1)
-        smask = max_p.ge(0.9)
+        smask = max_p.ge(0.95)
         #smask 这里是用在closs里面的 到底是用这个还是 select_mask 后面可以再看
         #la没效果 怀疑是mask的问题 edited on 24-09-26
-        org_mask = select_mask
+        if args.omaskmod == 1:
+            org_mask = select_mask
+        else:
+            org_mask = smask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
         int_mask = torch.cat([int_mask, int_mask], 0).float()
 
