@@ -792,7 +792,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #loss = Lx + Lu+totalabcloss
         #if args.use_la == True and epoch>100:
         #print('args.use-la',args.use_la)
-        if args.use_la == 1 :
+        if args.use_la == 1 and epoch > 100:
             loss = Lx_b + Lu_b #+totalabcloss
             #print('YES use-la logit adjustment')
         #elif args.comb == True and epoch>100:

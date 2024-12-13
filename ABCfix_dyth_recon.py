@@ -120,7 +120,11 @@ parser.add_argument('--lbdcl', default=0.05, type=float,
 parser.add_argument('--usecsl', default=0,type= int,
                         help='whether to use cost-sensitive learning')  
 parser.add_argument('--lbdcsl', default=1.5, type=float,
-                        help='lambda of cost-sensitive loss')         
+                        help='lambda of cost-sensitive loss')    
+parser.add_argument('--repmod', default=1, type=int,
+                        help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')    
+parser.add_argument('--omaskmod', default=1, type=int,
+                        help='what is mask of samples used to calculate distance and area, 1 for dynamic one and 2 for fixed 0/95')            
 args = parser.parse_args()
 
 #txtpath = "/data/lipeng/ABC/txt/try100_0502.txt"
@@ -233,6 +237,7 @@ def main():
 
     worst_k = []
     info_pairs = []
+    wk_ratio = -1
     N = len(unlabeled_trainloader.dataset.indices)
     learning_status = [-1] * N
 
@@ -252,10 +257,11 @@ def main():
         ema_model.load_state_dict(checkpoint['ema_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
+        wk_ratio = checkpoint['wk_rat']
         logger = Logger(os.path.join(args.out, 'log.txt'), title=title, resume=True)
     else:
         logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
-        logger.set_names(['Train Loss', 'Train Loss X', 'Train Loss U', 'abcloss','Train Loss X b','Train Loss U b','Train Loss cl','Test Loss', 'Test Acc.'])
+        logger.set_names(['Train Loss', 'TL X', 'TL U', 'TLabc','TL X_b','TL U_b','TL cl','Test Loss', 'Test Acc.','Wc_acc'])
 
     #==================
     twk = []
@@ -276,7 +282,8 @@ def main():
                                                                                                 epoch,ir2,scheduler,worst_k,info_pairs,
                                                                                                 learning_status=learning_status,N = N)
 
-        test_loss, test_acc, testclassacc,twk = validate(test_loader, ema_model, criterion, mode='Test Stats ',epoch = epoch)
+        test_loss, test_acc, testclassacc,twk = validate(test_loader, ema_model, criterion, mode='Test Stats ',epoch = epoch, wk = args.wk)
+        wk_ratio = len(set(worst_k) & set(twk)) / len(set(worst_k))
         print('\ntrue wk next epoch',twk,'\n')
         if args.dataset == 'cifar10':
             print("each class accuracy test", testclassacc, testclassacc.mean(),testclassacc[:5].mean(),testclassacc[5:].mean())
@@ -285,7 +292,7 @@ def main():
         elif args.dataset == 'cifar100':
             print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:50].mean(),testclassacc[50:].mean())
 
-        logger.append([train_loss, train_loss_x, train_loss_u,abcloss, train_loss_x_b, train_loss_u_b, train_loss_cl , test_loss, test_acc])
+        logger.append([train_loss, train_loss_x, train_loss_u,abcloss, train_loss_x_b, train_loss_u_b, train_loss_cl , test_loss, test_acc,wk_ratio])
 
         # Save models
         save_checkpoint({
@@ -297,7 +304,8 @@ def main():
                 'scheduler': scheduler.state_dict(),
                 'worst_k':worst_k,
                 'info_pairs':info_pairs,
-                'l_status':learning_status
+                'l_status':learning_status,
+                'wk_rat':wk_ratio
 
             }, epoch + 1)
 
@@ -355,7 +363,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     cls_rep_ureal = {i: [] for i in range(num_class)}
     cls_rep_upsu_part =  {i: [] for i in range(num_class)}
     cls_rep_upsu_all =  {i: [] for i in range(num_class)}
-
+    cls_center_final = {}
+    cls_rep_final = {i: [] for i in range(num_class)}
 
     Lx_w = torch.zeros(num_class)
     Lu_w = torch.zeros(num_class)
@@ -516,8 +525,12 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 if p.item() in worst_k:
                     int_mask1[i] = args.lbdcsl        
 
-        smask = max_p.ge(0.9)
-        org_mask = select_mask
+        smask = max_p.ge(0.95)
+        #org_mask = select_mask
+        if args.omaskmod == 1:
+            org_mask = select_mask
+        else:
+            org_mask = smask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
         int_mask = torch.cat([int_mask, int_mask], 0).float()
 
@@ -677,6 +690,15 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 mask_h1 = org_mask*class_mask                
                 if mask_h1.any():                                                                           
                     cls_rep_upsu_part[i].extend(q1[mask_h1.bool()].detach())
+        for i in range(num_class):
+                class_mask = (targets_u == i) 
+                class_mask_x = (targets_x2_1 == i)     
+                #print('len(class_mask)',len(class_mask),'len(select_mask)',len(select_mask),'class_mask[0]',class_mask[0],'select_mask[0]',select_mask[0])          
+                mask_h1 = org_mask*class_mask                
+                if mask_h1.any():                                                                           
+                    cls_rep_final[i].extend(q1[mask_h1.bool()].detach())
+                if class_mask_x.any():                                                           
+                    cls_rep_final[i].extend(q[class_mask_x].detach())
         '''       
         for i in range(num_class):
                 class_mask = (targets_su == i)
@@ -905,11 +927,18 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     '''
     for label, representations in cls_rep_upsu_part.items():
             try:
-                class_center = torch.mean(torch.stack(representations), dim=0)
+                #class_center = torch.mean(torch.stack(representations), dim=0)
+                class_center_upsu_ = torch.mean(torch.stack(representations), dim=0)
 
             except:
-                class_center = torch.zeros(128).cuda()
-            cls_center_upsu_part[label] = class_center
+                class_center_upsu_ = torch.zeros(128).cuda()
+            cls_center_upsu_part[label] = class_center_upsu_
+    for label, representations in cls_rep_final.items():
+            try:
+                class_center_final_ = torch.mean(torch.stack(representations), dim=0)
+            except:
+                class_center_final_ = torch.zeros(128).cuda()
+            cls_center_final[label] = class_center_final_
     '''
     for label, representations in cls_rep_upsu_all.items():
             try:
@@ -923,6 +952,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     #distx = cal_cent_dist(cls_center_x,spec_dist,'labeled center',txtpath)
     #distur = cal_cent_dist(cls_center_ureal,spec_dist,'unlabeled real center',txtpath)
     distus = cal_cent_dist(cls_center_upsu_part,spec_dist,'unlabeled selected center',txtpath)
+    distf = cal_cent_dist(cls_center_final,spec_dist,'selected center',txtpath)
     #distua = cal_cent_dist(cls_center_upsu_all,spec_dist,'unlabeled all center',txtpath)
 
         # Calculate the nearest and furthest samples for each pair of classes
@@ -942,6 +972,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     print("561 Current Time:", current_time)
     '''
     fdus = cal_fn_pair4(cls_rep_upsu_part,cls_center_upsu_part,num_classes,'cls_rep_upsu_part',txtpath,args.dismod,args.diskey)
+    fduf = cal_fn_pair4(cls_rep_final,cls_center_final,num_classes,'cls_rep_final',txtpath,args.dismod,args.diskey)
     '''
     current_time = datetime.now()
     print("564 Current Time:", current_time)
@@ -951,7 +982,13 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     current_time = datetime.now()
     print("567 Current Time:", current_time)
 
-    worst_k,info_pairs = worstk(args.wk,num_class,distus,fdus)
+    #worst_k,info_pairs = worstk(args.wk,num_class,distus,fdus)
+    if args.repmod == 0:
+        print('repmod == 0, only uspu used')
+        worst_k,info_pairs = worstk(args.wk,num_class,distus,fdus)
+    else:
+        print('repmod == 1, both uspu and  labeled used')
+        worst_k,info_pairs = worstk(args.wk,num_class,distf,fduf)
 
         ############################################
         ############################################
@@ -980,7 +1017,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
   
     return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg, losses_x_b.avg,  losses_u_b.avg, losses_cl.avg,  worst_k, info_pairs)
 
-def validate(valloader, model, criterion, mode, epoch):
+def validate(valloader, model, criterion, mode, epoch,wk):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -1095,7 +1132,7 @@ def validate(valloader, model, criterion, mode, epoch):
         classwise_recall.append(recall)
     accperclass_str = np.array2string(accperclass, separator=', ')
 
-    smallest_classes_indices = sorted(range(len(classwise_recall)), key=lambda i: classwise_recall[i])[:20]
+    smallest_classes_indices = sorted(range(len(classwise_recall)), key=lambda i: classwise_recall[i])[:wk]
     with open(txtpath, 'a') as file:
         print("Before writing")
         file.write("Class-wise Metrics (Recall and Precision):\n")
