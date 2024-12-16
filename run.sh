@@ -443,4 +443,25 @@ CUDA_VISIBLE_DEVICES=2 python fix_dyth_recon.py --dataset cifar10 --date 241213 
 CUDA_VISIBLE_DEVICES=0 python fix_dyth_recon.py --dataset cifar10 --date 241213 --tempt 5_ --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 5 --weakth 0.95 --cl12 0.3 --usedyth 1 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 2
 
 
+# autodl 3090 
+CUDA_VISIBLE_DEVICES=1 python ABCfix_dyth_recon.py --dataset cifar100 --date 241215 --tempt fix1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth 1 --use-la 0 --usecsl 0 --lbdcsl 1.4 --wk 20 --repmod 1 --omaskmod 1
+
+# not done
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_recon.py --dataset cifar100 --date 241215 --tempt fix4 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 3 --weakth 0.95 --cl12 0.6667 --usedyth 0 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 20 --repmod 1 --omaskmod 1
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_recon.py --dataset cifar100 --date 241215 --tempt fix5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 3 --weakth 0.95 --cl12 0.1 --usedyth 0 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 20 --repmod 1 --omaskmod 1
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_0813.py --dataset cifar100 --date 240803repeat --tempt 1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la False --comb False  --dismod furst --diskey 3 --weakth 0.55 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_0813.py --dataset cifar100 --date 240803repeat --tempt 2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.55 --usedyth False --higher_bound 0.7 --lower_bound 0.55
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_0813.py --dataset cifar100 --date 240803repeat --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb False  --dismod furst --diskey 3 --weakth 0.55 --usedyth True --higher_bound 0.7 --lower_bound 0.55
+
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_0813.py --dataset cifar100 --date 240803repeat1111 --tempt 3 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu False --use-la True --comb True  --dismod furst --diskey 3 --weakth 0.55 --usedyth True --higher_bound 0.7 --lower_bound 0.55 --resume /root/rssl/results/cf100_240803repeatt3/model_100.pth.tar
+
+
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_recon.py --dataset cifar100 --date 241215 --tempt fix5 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 3 --weakth 0.95 --cl12 0.4 --usedyth 0 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 20 --repmod 1 --omaskmod 1 --resume /root/rssl/results/cf100_241215tfix5/checkpoint.pth.tar
+
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_recon.py --dataset cifar100 --date 241216 --tempt try1 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 3 --weakth 0.95 --cl12 0.4 --usedyth 0 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 20 --repmod 1 --omaskmod 1 
+CUDA_VISIBLE_DEVICES=0 python ABCfix_dyth_recon.py --dataset cifar100 --date 241216 --tempt try2 --label_ratio 2 --imb_ratio 10 --num_max 150  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 3 --weakth 0.95 --cl12 0.4 --usedyth 1 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 20 --repmod 1 --omaskmod 1 
+
+
+
+
 

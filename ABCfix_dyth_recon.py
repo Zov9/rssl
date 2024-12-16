@@ -243,6 +243,10 @@ def main():
 
     # Resume
     title = 'ABCfix-' + args.dataset
+
+    logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
+    logger.set_names(['Train Loss', 'TL X', 'TL U', 'TLabc','TL X_b','TL U_b','TL cl','Test Loss', 'Test Acc.','Wc_acc'])
+    
     if args.resume:
         # Load checkpoint.
         print('==> Resuming from checkpoint..')
@@ -258,10 +262,10 @@ def main():
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
         wk_ratio = checkpoint['wk_rat']
-        logger = Logger(os.path.join(args.out, 'log.txt'), title=title, resume=True)
-    else:
-        logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
-        logger.set_names(['Train Loss', 'TL X', 'TL U', 'TLabc','TL X_b','TL U_b','TL cl','Test Loss', 'Test Acc.','Wc_acc'])
+        #logger = Logger(os.path.join(args.out, 'log.txt'), title=title, resume=True)
+    #else:
+        #logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
+        #logger.set_names(['Train Loss', 'TL X', 'TL U', 'TLabc','TL X_b','TL U_b','TL cl','Test Loss', 'Test Acc.','Wc_acc'])
 
     #==================
     twk = []
@@ -441,7 +445,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #=====
         counter = Counter(learning_status)
         counter1 = counter
-
+        '''
 
         num_unused = counter[-1]
         if num_unused != N:
@@ -466,7 +470,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             smallest_10 = counter1.most_common()[:-11:-1]  
             smallest_20 = counter1.most_common()[:-21:-1]  
             # Open the file in 'a' (append) mode and write the information
-            
+        '''
         #=====
 
         # Generate the pseudo labels
@@ -508,31 +512,10 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         
 
         
-        selected_thresholds = dy_threshold[p_hat_mx_tmp]
+        
         #print('selected_thresholds',selected_thresholds)
 
-        select_mask = max_p.ge(selected_thresholds)
-        int_mask = torch.ones_like(select_mask, dtype=torch.float).cuda()
-        int_mask1 = torch.ones(batch_size).cuda()
-
-        if args.usecsl == 1 and epoch>100:
-            print('Use cost-sensitive learning')
-            for i, p in enumerate(p_hat_mx_tmp):
-                if p.item() in worst_k:
-                    int_mask[i] = args.lbdcsl
-            #print('targets_x',targets_x)
-            for i, p in enumerate(targets_x):
-                if p.item() in worst_k:
-                    int_mask1[i] = args.lbdcsl        
-
-        smask = max_p.ge(0.95)
-        #org_mask = select_mask
-        if args.omaskmod == 1:
-            org_mask = select_mask
-        else:
-            org_mask = smask
-        select_mask = torch.cat([select_mask, select_mask], 0).float()
-        int_mask = torch.cat([int_mask, int_mask], 0).float()
+       
 
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
         all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
@@ -556,6 +539,9 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #PART 3 END
         logits = F.softmax(logit)#labeled sample
         logitsu1 = F.softmax(logitu1)#weak aug unlabel
+
+        
+
 
         #p1 = F.softmax(logits_x.detach())
         p2 = F.softmax(outputs_u.detach() - args.cl12 * args.adjustment_l12)
@@ -581,6 +567,14 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #m3b,t3b = torch.max(p3b,dim =1)
         #m4b,t4b = torch.max(p4b,dim =1)
         #m34b,t34b = torch.max(p34b,dim =1)
+
+        
+        if epoch <= 100 :
+            selected_thresholds = dy_threshold[p_hat_mx_tmp]
+            
+        else:
+            selected_thresholds = dy_threshold[t2b]
+            
 
         #msk1w = torch.tensor([index in worst_k for index in t1], dtype=torch.bool)
         msk2w = torch.tensor([index in worst_k for index in t2], dtype=torch.bool)
@@ -620,12 +614,48 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #msk34b = m34b.ge(args.threshold)
 
 
-        msk2zz = msk2w.cuda() & msk2s.cuda()
-        msk2zzb = msk2bw.cuda() & msk2sb.cuda()
+        #msk2zz = msk2w.cuda() & msk2s.cuda()
+        #msk2zzb = msk2bw.cuda() & msk2sb.cuda()
+        msk2zz = msk2s.cuda()
+        msk2zzb = msk2sb.cuda()
         msk2z = msk2.cuda() 
         msk2zb = msk2b.cuda() 
         finalmask = msk2zz+msk2zzb+msk2z+msk2zb
         fnmask2 = torch.cat([finalmask,finalmask],dim=0).cuda()
+
+
+        #max_p, p_hat = torch.max(targets_u2, dim=1)
+        select_mask1 = m2.ge(selected_thresholds)
+        select_mask2 = m2b.ge(selected_thresholds)
+        select_mask = select_mask1 + select_mask2
+        int_mask = torch.ones_like(select_mask, dtype=torch.float).cuda()
+        int_mask1 = torch.ones(batch_size).cuda()
+
+        if args.usecsl == 1 and epoch>100:
+            print('Use cost-sensitive learning')
+            for i, p in enumerate(t2b):
+                if p.item() in worst_k:
+                    int_mask[i] = args.lbdcsl
+            #print('targets_x',targets_x)
+            for i, p in enumerate(targets_x):
+                if p.item() in worst_k:
+                    int_mask1[i] = args.lbdcsl        
+
+        smask = max_p.ge(0.95)
+        #org_mask = select_mask
+        if args.omaskmod == 1:
+            org_mask = select_mask
+        else:
+            org_mask = smask
+        select_mask = torch.cat([select_mask, select_mask], 0).float()
+        int_mask = torch.cat([int_mask, int_mask], 0).float()
+
+
+
+
+
+
+
 
         '''
         with torch.no_grad():
@@ -746,18 +776,26 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         '''
 
         #0224
+        '''
         Lx_b = (F.cross_entropy(logit + args.adjustment_l2, all_targets[:batch_size], 
                                     reduction='none') * int_mask1).mean()
 
         Lu_b = (F.cross_entropy(logitu23, t2twice,
                                     reduction='none') * int_mask *fnmask2).mean()
+        '''
+        Lx_b = (F.cross_entropy(logit + args.adjustment_l2, all_targets[:batch_size], 
+                                    reduction='none') * int_mask1).mean()
 
+        Lu_b = (F.cross_entropy(logitu23, t2twice,
+                                    reduction='none') * int_mask *fnmask2).mean()
         #loss = Lx + Lu+totalabcloss
         if args.use_la == 1 and epoch>100:
-            loss = Lx_b + Lu_b +totalabcloss
+            result_1 = Lx + Lu
+            result_2 = Lx_b + Lu_b
+            print(f"\nLx + Lu: {result_1:.4f}, Lx_b + Lu_b: {result_2:.4f}, totalabcloss: {totalabcloss:.4f}")
+            loss = Lx + Lu + Lx_b + Lu_b + 0.1 * totalabcloss
         
-        elif args.comb == 1 and epoch>100:
-            loss = Lx + Lu + Lx_b + Lu_b+totalabcloss
+        
         
         else:
             loss = Lx + Lu+totalabcloss
