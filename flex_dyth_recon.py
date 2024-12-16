@@ -141,6 +141,11 @@ elif args.dataset=='svhn':
     print(f'==> Preparing imbalanced SVHN')
     dsstr = 'svhn'
     num_class = 10
+elif args.dataset=='stl':
+    import dataset.fix_stl as dataset
+    print(f'==> Preparing imbalanced STL')
+    dsstr = 'stl'
+    num_class = 10
 elif args.dataset=='cifar100':
     import dataset.fix_cifar100 as dataset
     print(f'==> Preparing imbalanced CIFAR100')
@@ -182,6 +187,8 @@ def main():
         train_labeled_set, train_unlabeled_set,test_set = dataset.get_cifar10('./data', N_SAMPLES_PER_CLASS,U_SAMPLES_PER_CLASS)
     elif args.dataset == 'svhn':
         train_labeled_set, train_unlabeled_set, test_set = dataset.get_SVHN('./data', N_SAMPLES_PER_CLASS,U_SAMPLES_PER_CLASS)
+    elif args.dataset == 'stl':
+        train_labeled_set, train_unlabeled_set, test_set = dataset.get_stl('./data', args)
     elif args.dataset =='cifar100':
 
         train_labeled_set, train_unlabeled_set, test_set = dataset.get_cifar100('./data', N_SAMPLES_PER_CLASS,U_SAMPLES_PER_CLASS)
@@ -294,6 +301,8 @@ def main():
         if args.dataset == 'cifar10':
             print("each class accuracy test", testclassacc, testclassacc.mean(),testclassacc[:5].mean(),testclassacc[5:].mean())
         elif args.dataset == 'svhn':
+            print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:5].mean(),testclassacc[5:].mean())
+        elif args.dataset == 'stl':
             print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:5].mean(),testclassacc[5:].mean())
         elif args.dataset == 'cifar100':
             print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:50].mean(),testclassacc[50:].mean())
@@ -1085,6 +1094,8 @@ def validate(valloader, model, criterion, mode, epoch,wk):
         accperclass = accperclass / 1000
     elif args.dataset == 'svhn':
         accperclass = accperclass / 1500
+    elif args.dataset == 'stl':
+        accperclass = accperclass / 800
     elif args.dataset == 'cifar100':
         accperclass = accperclass / 100
 
