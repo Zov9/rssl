@@ -142,6 +142,7 @@ elif args.dataset=='svhn':
     dsstr = 'svhn'
     num_class = 10
 elif args.dataset=='stl':
+    args.num_classes = 10
     import dataset.fix_stl as dataset
     print(f'==> Preparing imbalanced STL')
     dsstr = 'stl'
@@ -212,7 +213,10 @@ def main():
 
         return model, params
 
-    args.py_con = compute_py(labeled_trainloader, args)
+    if args.dataset == "stl":
+        args.py_con = compute_py_stl(labeled_trainloader, args)
+    else:
+        args.py_con = compute_py(labeled_trainloader, args)
     args.adjustment_l2 = compute_adjustment_by_py(args.py_con, args.tau2, args)
     args.adjustment_l12 = compute_adjustment_by_py(args.py_con, args.tau2, args)
 
@@ -421,24 +425,26 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     print('dynamic_thresholds',dy_threshold) 
     '''
     for batch_idx in range(args.val_iteration):
-        try:
-            #inputs_x, targets_x, _ = labeled_train_iter.next()
-            inputs_x, targets_x, _ = next(labeled_train_iter)
-            l_target.append(targets_x)
-        except:
-            labeled_train_iter = iter(labeled_trainloader)
-            #inputs_x, targets_x, _ = labeled_train_iter.next()
-            inputs_x, targets_x, _ = next(labeled_train_iter)
-            l_target.append(targets_x)
-        try:
-            (inputs_u, inputs_u2, inputs_u3), targets_su, idx_u = next(unlabeled_train_iter)
-            u_list.append(inputs_u)
-            u_target.append(targets_su)
-        except:
-            unlabeled_train_iter = iter(unlabeled_trainloader)
-            (inputs_u, inputs_u2, inputs_u3), targets_su, idx_u = next(unlabeled_train_iter)
-            u_list.append(inputs_u)
-            u_target.append(targets_su)
+        if args.dataset == "stl":
+            inputs_x, targets_x= next(labeled_train_iter)
+            (inputs_u, inputs_u2, inputs_u3), targets_su = next(unlabeled_train_iter)
+        else:
+            try:
+                #inputs_x, targets_x, _ = labeled_train_iter.next()
+                inputs_x, targets_x, _ = next(labeled_train_iter)
+                l_target.append(targets_x)
+            except:
+                labeled_train_iter = iter(labeled_trainloader)
+                #inputs_x, targets_x, _ = labeled_train_iter.next()
+                inputs_x, targets_x= next(labeled_train_iter)
+                l_target.append(targets_x)
+            try:
+                (inputs_u, inputs_u2, inputs_u3), targets_su, idx_u = next(unlabeled_train_iter)
+                #u_list.append(inputs_u)
+                #u_target.append(targets_su)
+            except:
+                unlabeled_train_iter = iter(unlabeled_trainloader)
+                (inputs_u, inputs_u2, inputs_u3), targets_su = next(unlabeled_train_iter)
         # Measure data loading time
         data_time.update(time.time() - end)
         batch_size = inputs_x.size(0)
@@ -449,8 +455,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         l_cm_target.append(targets_x)#!!!
         u_cm_target.append(targets_su)#!!!
 
-        targets_su2 = torch.zeros(batch_size, num_class).scatter_(1, targets_su.view(-1,1), 1)
-        targets_su2 = targets_su2.cuda()
+        #targets_su2 = torch.zeros(batch_size, num_class).scatter_(1, targets_su.view(-1,1), 1)
+        #targets_su2 = targets_su2.cuda()
 
         inputs_x, targets_x2 = inputs_x.cuda(), targets_x2.cuda(non_blocking=True)
         inputs_u, inputs_u2, inputs_u3 ,targets_su = inputs_u.cuda(), inputs_u2.cuda(), inputs_u3.cuda(),targets_su.cuda()
@@ -568,7 +574,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         int_mask = torch.cat([int_mask, int_mask], 0).float()
 
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
-        all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
+        #all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
 
         logits_x=model.classify(q)
         #outputs_u= model.classify(q1)  this is written elsewhere here to note

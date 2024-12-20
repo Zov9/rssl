@@ -8,6 +8,8 @@ from torchvision.transforms import transforms
 from RandAugment import RandAugment
 from RandAugment.augmentations import CutoutDefault
 
+from .randaugment import RandAugmentMC
+
 # Parameters for data
 stl10_mean = (0.4914, 0.4822, 0.4465)
 stl10_std = (0.2471, 0.2435, 0.2616)

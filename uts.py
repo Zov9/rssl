@@ -597,6 +597,23 @@ def compute_py(train_loader, args):
     #print('Label-freq-array',label_freq_array)
     return label_freq_array
 
+def compute_py_stl(train_loader, args):  #made for stl 10 
+    """compute the base probabilities"""
+    device = (torch.device('cuda'))
+    label_freq = {}
+    for i, (inputs, labell) in enumerate(train_loader):
+        labell = labell.to(device)
+        for j in labell:
+            key = int(j.item())
+            label_freq[key] = label_freq.get(key, 0) + 1
+    label_freq = dict(sorted(label_freq.items()))
+    label_freq_array = np.array(list(label_freq.values()))
+    label_freq_array = label_freq_array / label_freq_array.sum()
+    label_freq_array = torch.from_numpy(label_freq_array)
+    label_freq_array = label_freq_array.to(device)
+    #print('Label-freq-array',label_freq_array)
+    return label_freq_array
+
 def compute_adjustment_by_py(py, tro, args):
     device = (torch.device('cuda'))
     adjustments = torch.log(py ** tro + 1e-12)

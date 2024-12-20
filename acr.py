@@ -353,7 +353,7 @@ def main():
     
     args.out1 = './results/' + dsstr + '_' + args.date + 't' + args.tempt
     args.txtp = './txt/' + dsstr + '_' + args.date + 't'
-    print('args.out is =====>',args.out)
+    print('args.out1 is =====>',args.out1)
     print('args.txtp is =====>', args.txtp)
     txtpath = args.txtp+args.tempt+'.txt'
 
@@ -406,6 +406,7 @@ def main():
         class_list.append(str(i))
 
     title = 'FixMatch-' + args.dataset
+    args.out = args.out + args.date+'t'+args.tempt+'/'
     args.logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
     args.logger.set_names(['Top1 acc', 'Top5 acc', 'Best Top1 acc', 'Top1_b acc', 'Top5_b acc', 'Best Top1_b acc'])
 

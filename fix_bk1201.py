@@ -122,9 +122,7 @@ parser.add_argument('--usecsl', default=0,type= int,
 parser.add_argument('--lbdcsl', default=1.5, type=float,
                         help='lambda of cost-sensitive loss')      
 parser.add_argument('--repmod', default=1, type=int,
-                        help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')   
-parser.add_argument('--omaskmod', default=1, type=int,
-                        help='what is mask of samples used to calculate distance and area, 1 for dynamic one and 2 for fixed 0/95')      
+                        help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')        
 args = parser.parse_args()
 
 
@@ -141,12 +139,6 @@ elif args.dataset=='svhn':
     import dataset.fix_svhn as dataset
     print(f'==> Preparing imbalanced SVHN')
     dsstr = 'svhn'
-    num_class = 10
-elif args.dataset=='stl':
-    args.num_classes = 10
-    import dataset.fix_stl as dataset
-    print(f'==> Preparing imbalanced STL')
-    dsstr = 'stl'
     num_class = 10
 elif args.dataset=='cifar100':
     import dataset.fix_cifar100 as dataset
@@ -189,8 +181,6 @@ def main():
         train_labeled_set, train_unlabeled_set,test_set = dataset.get_cifar10('./data', N_SAMPLES_PER_CLASS,U_SAMPLES_PER_CLASS)
     elif args.dataset == 'svhn':
         train_labeled_set, train_unlabeled_set, test_set = dataset.get_SVHN('./data', N_SAMPLES_PER_CLASS,U_SAMPLES_PER_CLASS)
-    elif args.dataset == 'stl':
-        train_labeled_set, train_unlabeled_set, test_set = dataset.get_stl('./data', args)
     elif args.dataset =='cifar100':
 
         train_labeled_set, train_unlabeled_set, test_set = dataset.get_cifar100('./data', N_SAMPLES_PER_CLASS,U_SAMPLES_PER_CLASS)
@@ -214,12 +204,7 @@ def main():
 
         return model, params
 
-    if args.dataset == "stl":
-        args.py_con = compute_py_stl(labeled_trainloader, args)
-    else:
-        args.py_con = compute_py(labeled_trainloader, args)
-
-    
+    args.py_con = compute_py(labeled_trainloader, args)
     args.adjustment_l2 = compute_adjustment_by_py(args.py_con, args.tau2, args)
     args.adjustment_l12 = compute_adjustment_by_py(args.py_con, args.tau2, args)
 
@@ -252,8 +237,7 @@ def main():
     worst_k = []
     info_pairs = []
     wk_ratio = -1
-    #N = len(unlabeled_trainloader.dataset.indices)
-    N = 10
+    N = len(unlabeled_trainloader.dataset.indices)
     learning_status = [-1] * N
 
     # Resume
@@ -310,8 +294,6 @@ def main():
             print("each class accuracy test", testclassacc, testclassacc.mean(),testclassacc[:5].mean(),testclassacc[5:].mean())
         elif args.dataset == 'svhn':
             print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:5].mean(),testclassacc[5:].mean())
-        elif args.dataset == 'stl':
-            print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:5].mean(),testclassacc[5:].mean())
         elif args.dataset == 'cifar100':
             print("each class accuracy test", testclassacc, testclassacc.mean(), testclassacc[:50].mean(),testclassacc[50:].mean())
 
@@ -360,24 +342,51 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
     unlabeled_train_iter = iter(unlabeled_trainloader)
 
     model.train()
-
+    u_list = []
+    u_target = []
+    u_pseu = []
     u_pred = []
     l_target = []
+    l_pred = []
+
 
     u_cm_pred_w = []
     u_cm_pred_s = []
     u_cm_target = []
-
+    u_cm_pseu = []
+    u_cm_pseu1 = []
     l_cm_target = []
     l_cm_pred = []
+    u_cm_target95 = []
+    u_cm_pred_s95 = []
 
+    cls_center_x = {}
+    cls_center_ureal = {}
     cls_center_upsu_part = {}
+    cls_center_upsu_all = {}
     cls_center_final = {}
     cls_rep_final = {i: [] for i in range(num_class)}
+    cls_rep_x = {i: [] for i in range(num_class)}
+    cls_rep_ureal = {i: [] for i in range(num_class)}
     cls_rep_upsu_part =  {i: [] for i in range(num_class)}
+    cls_rep_upsu_all =  {i: [] for i in range(num_class)}
+
+
+    Lx_w = torch.zeros(num_class)
+    Lu_w = torch.zeros(num_class)
+    Labc_w = torch.zeros(num_class)
+    Lu_real_w1= torch.zeros(num_class)
+    #Lu_real_w2= torch.zeros(num_class)
     
     num_alli = 0
     num_allu = 0
+
+    lxct = [0]*num_class
+    luct = [0]*num_class
+    lurct = [0]*num_class
+    counter = Counter()
+    counter1 = Counter()
+
 
     dy_threshold =  torch.full((num_class,), 0.95).cuda()
     dict_from_pairs = {index: value for index, value in info_pairs}   
@@ -403,30 +412,25 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
 
     for batch_idx in range(args.val_iteration):
         batch_start_time = time.time()
-        if args.dataset == "stl":
-            inputs_x, targets_x= next(labeled_train_iter)
-            (inputs_u, inputs_u2, inputs_u3), targets_su = next(unlabeled_train_iter)
-        else:
-            try:
-                #inputs_x, targets_x, _ = labeled_train_iter.next()
-                inputs_x, targets_x, _ = next(labeled_train_iter)
-                l_target.append(targets_x)
-            except:
-                labeled_train_iter = iter(labeled_trainloader)
-                #inputs_x, targets_x, _ = labeled_train_iter.next()
-                inputs_x, targets_x= next(labeled_train_iter)
-                l_target.append(targets_x)
-            try:
-                (inputs_u, inputs_u2, inputs_u3), targets_su, idx_u = next(unlabeled_train_iter)
-                #u_list.append(inputs_u)
-                #u_target.append(targets_su)
-            except:
-                unlabeled_train_iter = iter(unlabeled_trainloader)
-                (inputs_u, inputs_u2, inputs_u3), targets_su = next(unlabeled_train_iter)
-            #u_list.append(inputs_u)
-            #u_target.append(targets_su)
+        try:
+            #inputs_x, targets_x, _ = labeled_train_iter.next()
+            inputs_x, targets_x, _ = next(labeled_train_iter)
+            l_target.append(targets_x)
+        except:
+            labeled_train_iter = iter(labeled_trainloader)
+            #inputs_x, targets_x, _ = labeled_train_iter.next()
+            inputs_x, targets_x, _ = next(labeled_train_iter)
+            l_target.append(targets_x)
+        try:
+            (inputs_u, inputs_u2, inputs_u3), targets_su, idx_u = next(unlabeled_train_iter)
+            u_list.append(inputs_u)
+            u_target.append(targets_su)
+        except:
+            unlabeled_train_iter = iter(unlabeled_trainloader)
+            (inputs_u, inputs_u2, inputs_u3), targets_su, idx_u = next(unlabeled_train_iter)
+            u_list.append(inputs_u)
+            u_target.append(targets_su)
         # Measure data loading time
-        part0_5_end_time = time.time()
         data_time.update(time.time() - end)
         batch_size = inputs_x.size(0)
 
@@ -436,14 +440,14 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         l_cm_target.append(targets_x)#!!!
         u_cm_target.append(targets_su)#!!!
 
-        #targets_su2 = torch.zeros(batch_size, num_class).scatter_(1, targets_su.view(-1,1), 1)
-        #targets_su2 = targets_su2.cuda()
+        targets_su2 = torch.zeros(batch_size, num_class).scatter_(1, targets_su.view(-1,1), 1)
+        targets_su2 = targets_su2.cuda()
 
         inputs_x, targets_x2 = inputs_x.cuda(), targets_x2.cuda(non_blocking=True)
         inputs_u, inputs_u2, inputs_u3 ,targets_su = inputs_u.cuda(), inputs_u2.cuda(), inputs_u3.cuda(),targets_su.cuda()
 
         #=====
-        '''
+        
         counter = Counter(learning_status)
         counter1 = counter
 
@@ -473,7 +477,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             smallest_10 = counter1.most_common()[:-11:-1]  
             smallest_20 = counter1.most_common()[:-21:-1]  
             # Open the file in 'a' (append) mode and write the information
-        ''' 
+         
         #=====
 
         # Generate the pseudo labels
@@ -550,18 +554,15 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #select_mask1 = max_p.ge(0.95)
         #print('select mask',select_mask)
         #print('select mask1',select_mask1)
-        smask = max_p.ge(0.95)
+        smask = max_p.ge(0.9)
         #smask 这里是用在closs里面的 到底是用这个还是 select_mask 后面可以再看
         #la没效果 怀疑是mask的问题 edited on 24-09-26
-        if args.omaskmod == 1:
-            org_mask = select_mask
-        else:
-            org_mask = smask
+        org_mask = select_mask
         select_mask = torch.cat([select_mask, select_mask], 0).float()
         int_mask = torch.cat([int_mask, int_mask], 0).float()
 
         all_targets = torch.cat([targets_x2, p_hat, p_hat], dim=0)
-        #all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
+        all_rtargets = torch.cat([targets_x2,targets_su2,targets_su2],dim=0)
 
         logits_x=model.classify(q)
         #outputs_u= model.classify(q1)  this is written elsewhere here to note
@@ -786,7 +787,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #loss = Lx + Lu+totalabcloss
         #if args.use_la == True and epoch>100:
         #print('args.use-la',args.use_la)
-        if args.use_la == 1 and epoch > 100:
+        if args.use_la == 1 :
             loss = Lx_b + Lu_b #+totalabcloss
             #print('YES use-la logit adjustment')
         #elif args.comb == True and epoch>100:
@@ -879,8 +880,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #PART 8 END
 
         sum_time = part8_end_time - batch_start_time
-        pt0_5 = part0_5_end_time - batch_start_time
-        pt1 = part1_end_time - part0_5_end_time
+        pt1 = part1_end_time - batch_start_time
         pt2 = part2_end_time - part1_end_time
         pt3 = part3_end_time - part2_end_time
         pt4 = part4_end_time - part3_end_time
@@ -888,7 +888,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         pt6 = part6_end_time - part5_end_time
         pt7 = part7_end_time - part6_end_time
         pt8 = part8_end_time - part7_end_time
-        pt0_per = pt0_5/sum_time
         pt1_per = pt1/sum_time
         pt2_per = pt2/sum_time
         pt3_per = pt3/sum_time
@@ -898,7 +897,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         pt7_per = pt7/sum_time
         pt8_per = pt8/sum_time
         
-        probabilities = [pt0_per, pt1_per, pt2_per, pt3_per, pt4_per, pt5_per, pt6_per, pt7_per, pt8_per]
+        probabilities = [pt1_per, pt2_per, pt3_per, pt4_per, pt5_per, pt6_per, pt7_per, pt8_per]
 
         print(' '.join([f"part{i}: {p * 100:.1f}%" for i, p in enumerate(probabilities, 1)]))
 
@@ -1132,8 +1131,6 @@ def validate(valloader, model, criterion, mode, epoch,wk):
         accperclass = accperclass / 1000
     elif args.dataset == 'svhn':
         accperclass = accperclass / 1500
-    elif args.dataset == 'stl':
-        accperclass = accperclass / 800
     elif args.dataset == 'cifar100':
         accperclass = accperclass / 100
 
