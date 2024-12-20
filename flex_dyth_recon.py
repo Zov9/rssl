@@ -1050,7 +1050,11 @@ def validate(valloader, model, criterion, mode, epoch,wk):
     all_outputs = []
 
     with torch.no_grad():
-        for batch_idx, (inputs, targets, _) in enumerate(valloader):
+        for batch_idx, data1 in enumerate(valloader):
+            try:
+                inputs, targets, _ = data1
+            except ValueError:
+                inputs, targets = data1
             # measure data loading time
             data_time.update(time.time() - end)
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
