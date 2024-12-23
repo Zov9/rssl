@@ -291,7 +291,7 @@ def main():
 
     if args.seed is not None:
         set_seed(args)
-
+    args.out = args.out + '_' + args.date+'t'+args.tempt
     if args.local_rank in [-1, 0]:
         os.makedirs(args.out, exist_ok=True)
         args.writer = SummaryWriter(args.out)
@@ -406,7 +406,7 @@ def main():
         class_list.append(str(i))
 
     title = 'FixMatch-' + args.dataset
-    args.out = args.out + args.date+'t'+args.tempt+'/'
+    
     args.logger = Logger(os.path.join(args.out, 'log.txt'), title=title)
     args.logger.set_names(['Top1 acc', 'Top5 acc', 'Best Top1 acc', 'Top1_b acc', 'Top5_b acc', 'Best Top1_b acc'])
 
@@ -586,11 +586,16 @@ def train(args, labeled_trainloader, unlabeled_trainloader, test_loader,
             targets_x = targets_x.to(args.device)
 
             logits_feat = model(inputs)
+            q_ = de_interleave(logits_feat, 3*args.mu+1)
+            q = q_[:batch_size]
+            q1,q2,q3 = q_[batch_size:].chunk(3)
+
             logits = model.classify(logits_feat)
 
             logits = de_interleave(logits, 3*args.mu+1)
             logits_x = logits[:batch_size]
             logits_u_w, logits_u_s, logits_u_s1 = logits[batch_size:].chunk(3)
+            #print("shape of x and u_w: ",logits_x.shape,logits_u_w.shape)  # Output: torch.Size([3, 4, 5])
             del logits
             
 
@@ -665,24 +670,25 @@ def train(args, labeled_trainloader, unlabeled_trainloader, test_loader,
             now_mask = now_mask.to(args.device)
             u_real[u_real==-2] = 0
 
-
+            
             targets_x2_1 = torch.tensor([torch.argmax(tensor).item() for tensor in targets_x])   
             for i in range(num_class):
                 class_mask = (targets_u == i)      
                 #print('len(class_mask)',len(class_mask),'len(select_mask)',len(select_mask),'class_mask[0]',class_mask[0],'select_mask[0]',select_mask[0])          
                 mask_h1 = org_mask*class_mask                
                 if mask_h1.any():                                                                           
-                    cls_rep_upsu_part[i].extend(logits_u_w[mask_h1.bool()].detach())
+                    cls_rep_upsu_part[i].extend(q1[mask_h1.bool()].detach())
             for i in range(num_class):
                     class_mask = (targets_u == i) 
                     class_mask_x = (targets_x2_1 == i)     
                     #print('len(class_mask)',len(class_mask),'len(select_mask)',len(select_mask),'class_mask[0]',class_mask[0],'select_mask[0]',select_mask[0])          
                     mask_h1 = org_mask*class_mask                
                     if mask_h1.any():                                                                           
-                        cls_rep_final[i].extend(logits_u_w[mask_h1.bool()].detach())
+                        cls_rep_final[i].extend(q1[mask_h1.bool()].detach())
+                        
                     if class_mask_x.any():                                                           
-                        cls_rep_final[i].extend(logits_x[class_mask_x].detach())
-
+                        cls_rep_final[i].extend(q[class_mask_x].detach())
+                        
             if epoch > args.est_epoch:
                 now_mask[targets_u_b] += mask_l*mask_b
                 args.est_step = args.est_step + 1

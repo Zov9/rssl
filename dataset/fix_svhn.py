@@ -124,3 +124,4 @@ class SVHN_unlabeled(SVHN_labeled):
                                                 transform=transform, target_transform=target_transform,
                                                 download=download)
         self.labels = np.array([-1 for i in range(len(self.labels))])
+        self.indices = indexs

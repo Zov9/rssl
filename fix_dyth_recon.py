@@ -420,6 +420,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 inputs_x, targets_x, _ = next(labeled_train_iter)
                 l_target.append(targets_x)
             except:
+                #print('\n another iter of dataloader')
                 labeled_train_iter = iter(labeled_trainloader)
                 inputs_x, targets_x, _ = labeled_train_iter.next()
                 #inputs_x, targets_x= next(labeled_train_iter)
@@ -429,6 +430,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
                 #u_list.append(inputs_u)
                 #u_target.append(targets_su)
             except:
+                #print('\n another iter of unlabeled dataloader')
                 unlabeled_train_iter = iter(unlabeled_trainloader)
                 (inputs_u, inputs_u2, inputs_u3), targets_su,idx_u = next(unlabeled_train_iter)
             #u_list.append(inputs_u)

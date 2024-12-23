@@ -247,6 +247,7 @@ def main():
     start_epoch = 0
 
     worst_k = []
+    worst_k_flex = []
     info_pairs = []
     wk_ratio = -1
     N = len(unlabeled_trainloader.dataset.indices)
@@ -335,7 +336,7 @@ def main():
 
 
 
-def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_optimizer, criterion, epoch,ir2,scheduler, worst_k,info_pairs,learning_status,N):
+def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_optimizer, criterion, epoch,ir2,scheduler, worst_k_flex,info_pairs,learning_status,N):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -488,7 +489,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             # Creating a new counter without key -1
             counter1 = Counter({k: v / result_arr[k] for k, v in counter.items() if k != -1})
             counter2 = Counter({k: v / result_arr_1[k] for k, v in counter.items() })
-
+            smallest_pairs = sorted(counter1.items(), key=lambda x: x[1])[:args.wk]
+            worst_k_flex = [pair[0] for pair in smallest_pairs]
             max_counter1 = max([counter2[c] for c in range(num_class)])
             if max_counter1 < num_unused:
                 # normalize with eq.11
@@ -551,11 +553,11 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         if args.usecsl == 1 and epoch>100:
             print('Use cost-sensitive learning')
             for i, p in enumerate(p_hat_mx_tmp):
-                if p.item() in worst_k:
+                if p.item() in worst_k_flex:
                     int_mask[i] = args.lbdcsl
             #print('targets_x',targets_x)
             for i, p in enumerate(targets_x):
-                if p.item() in worst_k:
+                if p.item() in worst_k_flex:
                     int_mask1[i] = args.lbdcsl
         #print('int_mask',int_mask)
         osmask = select_mask_
@@ -811,7 +813,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #clossu = criterionu(smask,q1,hard_label,worst_k)
 
         #0208 clossu and clossx below
-        worst_k_flex = [i for i in range(num_class)]
+        #worst_k_flex = [i for i in range(num_class)]
         #clossu = criterionu(osmask,worst_k_flex,logits_x,outputs_u,all_targets[:batch_size],targets_u)#supconloss2
         #clossu = criterionu(smask,worst_k,logits_x,outputs_u,all_targets[:batch_size],targets_su)
         #clossx = criterionx(worst_k,logits_x,all_targets[:batch_size])
@@ -1007,6 +1009,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             file.write("Epoch: "+str(epoch)+'\n')
             file.write('Worst k predicted\n') 
             file.write(str(worst_k))
+            file.write('Worst k predicted by flex alg\n') 
+            file.write(str(worst_k_flex))
             file.write('\n') 
             '''
             file.write('Lx_w\n') 
@@ -1025,7 +1029,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             file.write('\n') 
             '''
   
-    return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg, losses_x_b.avg,  losses_u_b.avg, losses_cl.avg,  worst_k, info_pairs)
+    return (losses.avg, losses_x.avg, losses_u.avg, losses_abc.avg, losses_x_b.avg,  losses_u_b.avg, losses_cl.avg,  worst_k_flex, info_pairs)
 
 def validate(valloader, model, criterion, mode, epoch,wk):
     batch_time = AverageMeter()

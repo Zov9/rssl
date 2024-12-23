@@ -55,9 +55,12 @@ class TransformTwice:
 
 def get_stl(root,args):
     train_labeled_dataset = datasets.STL10(root, split="train", transform=transform_train, download=True)
-    train_unlabeled_dataset = datasets.STL10(root, split="unlabeled",
-                                                         transform=TransformFixMatchSTL(mean=stl10_mean, std=stl10_std),
-                                                         download=True)
+    #train_unlabeled_dataset = datasets.STL10(root, split="unlabeled",
+    #                                                     transform=TransformFixMatchSTL(mean=stl10_mean, std=stl10_std),
+    #                                                     download=True)
+    train_unlabeled_dataset = STL10_unlabeled(root, split="unlabeled",
+                                            transform=TransformFixMatchSTL(mean=stl10_mean, std=stl10_std),
+                                            download=True)
     test_dataset = datasets.STL10(root, split="test", transform=transform_val, download=True)
 
 
@@ -144,3 +147,30 @@ class TransformFixMatchSTL(object):
         strong1 = self.strong(x)
         return self.normalize(weak), self.normalize(strong), self.normalize(strong1)
         # return self.normalize(weak), self.normalize(strong)
+
+
+
+
+
+class STL10_unlabeled(datasets.STL10):
+    def __init__(self, root, split='unlabeled', transform=None, target_transform=None, download=True):
+        super(STL10_unlabeled, self).__init__(root, split=split,
+                                             transform=transform,
+                                             target_transform=target_transform,
+                                             download=download)
+        # 为无标签数据创建虚拟标签和索引
+        self.labels = np.array([-1] * len(self.data))
+        self.indices = np.arange(len(self.data))
+
+    def __getitem__(self, index):
+        img = self.data[index]
+        target = self.labels[index]
+        #img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target, index
