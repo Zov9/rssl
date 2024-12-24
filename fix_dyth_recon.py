@@ -125,6 +125,8 @@ parser.add_argument('--repmod', default=1, type=int,
                         help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')   
 parser.add_argument('--omaskmod', default=1, type=int,
                         help='what is mask of samples used to calculate distance and area, 1 for dynamic one and 2 for fixed 0/95')      
+parser.add_argument('--mu', default=1, type= int,
+                        help='batch size for unlabeled dataloader, 7 for balanced setting')
 args = parser.parse_args()
 
 
@@ -197,7 +199,7 @@ def main():
 
     labeled_trainloader = data.DataLoader(train_labeled_set, batch_size=args.batch_size, shuffle=True, num_workers=4,
                                           drop_last=True)
-    unlabeled_trainloader = data.DataLoader(train_unlabeled_set, batch_size=args.batch_size, shuffle=True, num_workers=4,drop_last=True)
+    unlabeled_trainloader = data.DataLoader(train_unlabeled_set, batch_size=args.batch_size * args.mu, shuffle=True, num_workers=4,drop_last=True)
     test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # Model
