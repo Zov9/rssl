@@ -159,6 +159,7 @@ class STL10_unlabeled(datasets.STL10):
                                              target_transform=target_transform,
                                              download=download)
         # 为无标签数据创建虚拟标签和索引
+        #self.data = [Image.fromarray(img) for img in self.data]
         self.labels = np.array([-1] * len(self.data))
         self.indices = np.arange(len(self.data))
 
@@ -166,7 +167,7 @@ class STL10_unlabeled(datasets.STL10):
         img = self.data[index]
         target = self.labels[index]
         #img = Image.fromarray(np.transpose(img, (1, 2, 0)))
-
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
         if self.transform is not None:
             img = self.transform(img)
 
