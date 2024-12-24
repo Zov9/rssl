@@ -524,7 +524,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print("len(max_p)",len(max_p),"max_p[0]",max_p[0])
         p_hat_mx_tmp  = p_hat
         
-        p_hat = torch.zeros(batch_size, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
+        p_hat = torch.zeros(batch_size*args.mu, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
            
         selected_thresholds = dy_threshold[p_hat_mx_tmp]
         #print('selected_thresholds',selected_thresholds)
@@ -690,7 +690,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         max_p2, label_u = torch.max(logitsu1, dim=1)
         select_mask2 = max_p2.ge(0.95)
         smask2 = max_p2.ge(0.9)
-        label_u = torch.zeros(batch_size, num_class).scatter_(1, label_u.cpu().view(-1, 1), 1)
+        label_u = torch.zeros(batch_size*args.mu, num_class).scatter_(1, label_u.cpu().view(-1, 1), 1)
         ir22 = 1 - (epoch / 500) * (1 - ir2)
         maskforbalanceu = torch.bernoulli(torch.sum(label_u.cuda(0) * torch.tensor(ir22).cuda(0), dim=1).detach())
         logitsu2 = F.softmax(logitu2)
