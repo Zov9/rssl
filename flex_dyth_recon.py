@@ -502,19 +502,23 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             result_arr_1.append(res_arr_sum)
             
             # Creating a new counter without key -1
+            
             counter1 = Counter({k: v / result_arr[k] for k, v in counter.items() if k != -1})
             counter2 = Counter({k: v / result_arr_1[k] for k, v in counter.items() })
-
-            max_counter1 = max([counter2[c] for c in range(num_class)])
+            if args.dataset == "stl":
+                tcounter = counter
+            else:
+                tcounter = counter2
+            max_counter1 = max([tcounter[c] for c in range(num_class)])
             if max_counter1 < num_unused:
                 # normalize with eq.11
-                sum_counter1 = sum([counter2[c] for c in range(num_class)])                    
+                sum_counter1 = sum([tcounter[c] for c in range(num_class)])                    
                 denominator1 = max(max_counter1, N - sum_counter1)
             else:
                 denominator1 = max_counter1
             # threshold per class
             #for c in range(num_class):
-            beta1 = [counter2[c] / denominator1 for c in range(num_class)]
+            beta1 = [tcounter[c] / denominator1 for c in range(num_class)]
 
             for item in range(num_class):
                     dy_threshold[item] =  args.weakth * beta1[item]/(2-beta1[item])
