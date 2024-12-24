@@ -125,6 +125,8 @@ parser.add_argument('--repmod', default=1, type=int,
                         help='what samples to use to calculate distance, 0 for only upsu 1 for upsu and labeled')    
 parser.add_argument('--omaskmod', default=1, type=int,
                         help='what is mask of samples used to calculate distance and area, 1 for dynamic one and 2 for fixed 0/95')     
+parser.add_argument('--mu', default=1, type= int,
+                        help='batch size for unlabeled dataloader, 7 for balanced setting')
 args = parser.parse_args()
 
 #txtpath = "/data/lipeng/ABC/txt/try100_0502.txt"
@@ -196,7 +198,7 @@ def main():
 
     labeled_trainloader = data.DataLoader(train_labeled_set, batch_size=args.batch_size, shuffle=True, num_workers=4,
                                           drop_last=True)
-    unlabeled_trainloader = data.DataLoader(train_unlabeled_set, batch_size=args.batch_size, shuffle=True, num_workers=4,drop_last=True)
+    unlabeled_trainloader = data.DataLoader(train_unlabeled_set, batch_size=args.batch_size*args.mu, shuffle=True, num_workers=4,drop_last=True)
     test_loader = data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
     # Model
@@ -541,7 +543,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         #print("len(max_p)",len(max_p),"max_p[0]",max_p[0])
         p_hat_mx_tmp  = p_hat
         
-        p_hat = torch.zeros(batch_size, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
+        p_hat = torch.zeros(batch_size*args.mu, num_class).cuda().scatter_(1, p_hat.view(-1, 1), 1)
            
         selected_thresholds = dy_threshold[p_hat_mx_tmp]
         #print('selected_thresholds',selected_thresholds)
@@ -686,7 +688,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         max_p2, label_u = torch.max(logitsu1, dim=1)
         select_mask2 = max_p2.ge(0.95)
         smask2 = max_p2.ge(0.9)
-        label_u = torch.zeros(batch_size, num_class).scatter_(1, label_u.cpu().view(-1, 1), 1)
+        label_u = torch.zeros(batch_size*args.mu, num_class).scatter_(1, label_u.cpu().view(-1, 1), 1)
         ir22 = 1 - (epoch / 500) * (1 - ir2)
         maskforbalanceu = torch.bernoulli(torch.sum(label_u.cuda(0) * torch.tensor(ir22).cuda(0), dim=1).detach())
         logitsu2 = F.softmax(logitu2)
