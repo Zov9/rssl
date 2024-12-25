@@ -527,7 +527,9 @@ CUDA_VISIBLE_DEVICES=0 python flex_dyth_recon.py --dataset svhn --date 2423 --te
 CUDA_VISIBLE_DEVICES=0 python flex_dyth_recon.py --dataset svhn --date 2423 --tempt 2 --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 2 --weakth 0.95 --cl12 0.3 --usedyth 0 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 1
     #...
 CUDA_VISIBLE_DEVICES=0 python flex_dyth_recon.py --dataset svhn --date 2423 --tempt 3 --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 2 --weakth 0.95 --cl12 0.3 --usedyth 0 --use-la 1 --usecsl 1 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 1
-
+   #先加一个 supervised
+   CUDA_VISIBLE_DEVICES=0 python fix_s.py --dataset svhn --date 241224s --tempt 1 --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 2 --weakth 0.95 --cl12 0.3 --usedyth 0 --use-la 0 --usecsl 0 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 1 
+    #...
 CUDA_VISIBLE_DEVICES=0 python flex_dyth_recon.py --dataset stl --date 2424 --tempt 0 --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 2 --weakth 0.95 --cl12 0.3 --usedyth 0 --use-la 0 --usecsl 0 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 1
 CUDA_VISIBLE_DEVICES=0 python flex_dyth_recon.py --dataset stl --date 2424 --tempt 1 --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 2 --weakth 0.95 --cl12 0.3 --usedyth 0 --use-la 0 --usecsl 1 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 1
 CUDA_VISIBLE_DEVICES=0 python flex_dyth_recon.py --dataset stl --date 2424 --tempt 2 --label_ratio 2 --imb_ratio 100 --num_max 1500  --epochs 500 --closstemp 0.1 --distance 0.1 --lam 1  --conu 0 --dismod furst --diskey 2 --weakth 0.95 --cl12 0.3 --usedyth 0 --use-la 1 --usecsl 0 --lbdcsl 1.4 --wk 3 --repmod 1 --omaskmod 1
