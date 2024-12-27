@@ -351,11 +351,12 @@ def main():
         elif args.img_size == 64:
             args.dataset_name = 'imagenet64'
     
-    args.out1 = './results/' + dsstr + '_' + args.date + 't' + args.tempt
-    args.txtp = './txt/' + dsstr + '_' + args.date + 't'
+    args.out1 = './results/' + dsstr + '_' + args.date + 't'
+    args.txtp = './txt/' + dsstr + '_' + args.date + 't' + args.tempt
     print('args.out1 is =====>',args.out1)
     print('args.txtp is =====>', args.txtp)
-    txtpath = args.txtp+args.tempt+'.txt'
+    txtpath = args.txtp+'.txt'
+    print('txtpath',txtpath)
 
     if args.local_rank not in [-1, 0]:
         torch.distributed.barrier()
@@ -646,7 +647,7 @@ def train(args, labeled_trainloader, unlabeled_trainloader, test_loader,
             int_mask = torch.ones_like(mask, dtype=torch.float).cuda()
             int_mask1 = torch.ones(batch_size).cuda()
             if args.usecsl == 1 and epoch>100:
-                print('Use cost-sensitive learning')
+                #print('Use cost-sensitive learning')
                 for i, p in enumerate(targets_u_b):
                     if p.item() in worst_k:
                         int_mask[i] = args.lbdcsl
